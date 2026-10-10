@@ -245,5 +245,35 @@ namespace HUScroll.Tests
 
             Assert.Equal(pageRows, engine.Compose().Height);
         }
+
+        [Fact]
+        public void ScrollBackAndForth_ContinuesAtTheDeepestFrame()
+        {
+            // Manual mode: the user scrolls down, back up a bit, and further down again
+            const int pageRows = 2000, viewRows = 500;
+            var page = CreatePage(pageRows, 10);
+            var engine = new StitchEngine();
+            FrameData At(int offset) => Viewport(page, pageRows, offset, viewRows, 0, 0, true, 0);
+
+            engine.Add(At(0));
+            Assert.Equal(StitchStatus.Appended, engine.Add(At(200)).Status);
+            Assert.Equal(StitchStatus.Appended, engine.Add(At(450)).Status);
+            var back = engine.Add(At(300));
+            Assert.Equal(StitchStatus.ScrolledBack, back.Status);
+            Assert.Equal(-150, back.Shift);
+            Assert.Equal(StitchStatus.ScrolledBack, engine.Add(At(100)).Status);
+            // further down than before: continues from offset 450
+            var forward = engine.Add(At(700));
+            Assert.Equal(StitchStatus.Appended, forward.Status);
+            Assert.Equal(250, forward.Shift);
+            Assert.Equal(StitchStatus.Appended, engine.Add(At(1100)).Status);
+            Assert.Equal(StitchStatus.Appended, engine.Add(At(1500)).Status);
+
+            var composed = engine.Compose();
+            Assert.Equal(1500 + viewRows, composed.Height);
+            for (int y = 0; y < composed.Height; y++)
+            for (int x = 0; x < Width - 24; x++)
+                Assert.Equal(page[y * Width + x], composed[x, y]);
+        }
     }
 }

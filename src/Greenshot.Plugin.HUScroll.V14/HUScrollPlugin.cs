@@ -23,7 +23,8 @@ namespace Greenshot.Plugin.HUScroll
         private const string EditorDesignation = "Editor";
         private static readonly log4net.ILog Log = log4net.LogManager.GetLogger(typeof(HUScrollPlugin));
 
-        private TrayMenuEntry _menuEntry;
+        private TrayMenuEntry _automaticEntry;
+        private TrayMenuEntry _manualEntry;
         private bool _running;
 
         public string Name => "HUScroll";
@@ -39,11 +40,8 @@ namespace Greenshot.Plugin.HUScroll
         public Task StopAsync(CancellationToken cancellationToken) =>
             UiDispatcher.Current.RunOnUiAsync(() =>
             {
-                if (_menuEntry == null) return;
-                _menuEntry.Click -= OnMenuClick;
-                PluginUtils.RemoveFromContextMenu(_menuEntry);
-                _menuEntry.Dispose();
-                _menuEntry = null;
+                RemoveEntry(ref _automaticEntry);
+                RemoveEntry(ref _manualEntry);
             }, cancellationToken);
 
         public ValueTask DisposeAsync()
@@ -54,24 +52,40 @@ namespace Greenshot.Plugin.HUScroll
 
         private void Start()
         {
-            _menuEntry = new TrayMenuEntry
-            {
-                Text = "Scroll-Capture (HUScroll)",
-                Image = HUScrollIcon.Create(16)
-            };
-            _menuEntry.Click += OnMenuClick;
-            PluginUtils.AddToContextMenu(_menuEntry);
+            // 1.4 shows the entries in the order they were added
+            _automaticEntry = CreateEntry("Scroll-Capture automatisch (HUScroll)", ScrollCaptureMode.Automatic);
+            _manualEntry = CreateEntry("Scroll-Capture manuell (HUScroll)", ScrollCaptureMode.Manual);
             Log.InfoFormat("HUScroll {0} started", typeof(HUScrollPlugin).Assembly.GetName().Version);
         }
 
-        private async void OnMenuClick(object sender, EventArgs e)
+        private TrayMenuEntry CreateEntry(string text, ScrollCaptureMode mode)
+        {
+            var entry = new TrayMenuEntry
+            {
+                Text = text,
+                Image = HUScrollIcon.Create(16)
+            };
+            entry.Click += (sender, e) => OnMenuClick(mode);
+            PluginUtils.AddToContextMenu(entry);
+            return entry;
+        }
+
+        private static void RemoveEntry(ref TrayMenuEntry entry)
+        {
+            if (entry == null) return;
+            PluginUtils.RemoveFromContextMenu(entry);
+            entry.Dispose();
+            entry = null;
+        }
+
+        private async void OnMenuClick(ScrollCaptureMode mode)
         {
             if (_running) return;
             _running = true;
             try
             {
                 var session = new ScrollCaptureSession(log: message => Log.Info(message));
-                var result = await session.RunAsync();
+                var result = await session.RunAsync(mode);
                 if (result?.Image == null) return;
 
                 string summary = $"{result.Image.Width} × {result.Image.Height} px aus {result.Frames} Bildern – {result.StopReason}";

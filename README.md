@@ -10,14 +10,21 @@ Fenster wählen, HUScroll scrollt selbst, setzt die Bilder zu einem langen Scree
 
 ## Benutzung
 
-Rechtsklick aufs Greenshot-Tray-Symbol → **Scroll-Capture (HUScroll)**
+Rechtsklick aufs Greenshot-Tray-Symbol:
+
+**Scroll-Capture automatisch (HUScroll)** – HUScroll scrollt selbst bis zum Ende
+
+**Scroll-Capture manuell (HUScroll)** – du scrollst selbst mit dem Mausrad; der Rahmen bleibt stehen (durchklickbar), HUScroll nimmt jede Position auf. Zurückscrollen ist erlaubt, angehängt wird erst wieder unterhalb der tiefsten Stelle. Roter Rahmen = kein Anschluss (zu weit auf einmal gescrollt) → etwas zurückscrollen.
+
+Auswahl (beide Modi):
 
 - **Klick**: Fenster bzw. Seiteninhalt unter der Maus (bei Browsern wird der Seitenbereich erkannt, wenn er ein eigenes Fenster-Handle hat)
-- **Ziehen**: freier Bereich
+- **Ziehen**: freier Bereich (Rahmen)
 - **Shift** gedrückt halten: ganzes Fenster statt Seiteninhalt
 - **Esc** oder **Fertig**: Aufnahme beenden, das Ergebnis bis dahin geht in den Editor
 
-HUScroll hört von selbst auf, wenn sich der Inhalt nicht mehr bewegt (Seitenende), bei 30 000 px Höhe oder 120 Bildern.
+Automatisch hört HUScroll von selbst auf, wenn sich der Inhalt nicht mehr bewegt (Seitenende); beide Modi stoppen bei 30 000 px Höhe oder 120 Bildern.
+Eine Info-Meldung gibt es nur bei Abbruch oder Problemen.
 
 ## Installation
 

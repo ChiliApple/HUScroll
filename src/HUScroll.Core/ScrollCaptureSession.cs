@@ -42,8 +42,19 @@ namespace HUScroll.Core
     }
 
     /// <summary>
-    /// One scroll capture, Samsung style: select the window or area, then it scrolls by itself and stitches the frames,
-    /// until the end of the content, the maximum height, or Esc / "Fertig".
+    /// How the content is scrolled
+    /// </summary>
+    public enum ScrollCaptureMode
+    {
+        /// <summary>HUScroll scrolls by itself (mouse wheel input) until the end of the content</summary>
+        Automatic,
+        /// <summary>The user scrolls, HUScroll captures every settled position (scrolling back up is allowed)</summary>
+        Manual
+    }
+
+    /// <summary>
+    /// One scroll capture: select the window or area, then the content is scrolled (by HUScroll or by the user)
+    /// and the frames are stitched, until the end of the content, the maximum height, or Esc / "Fertig".
     /// Runs on the UI thread (async, the UI stays responsive), host independent: the Greenshot plugins only pass the image on.
     /// </summary>
     public sealed class ScrollCaptureSession
@@ -54,7 +65,11 @@ namespace HUScroll.Core
 
         private readonly ScrollCaptureOptions _options;
         private readonly Action<string> _log;
+        private static readonly Color FrameColor = Color.FromArgb(0, 170, 255);
+        private static readonly Color FrameErrorColor = Color.FromArgb(235, 50, 50);
+
         private CaptureStatusForm _status;
+        private SelectionFrameForm _frame;
         private double _maxPixelsPerNotch;
 
         public ScrollCaptureSession(ScrollCaptureOptions options = null, Action<string> log = null)
@@ -67,8 +82,9 @@ namespace HUScroll.Core
         /// Run the capture
         /// </summary>
         /// <returns>The result, or null when the user cancelled the selection</returns>
-        public async Task<ScrollCaptureResult> RunAsync(IWin32Window owner = null)
+        public async Task<ScrollCaptureResult> RunAsync(ScrollCaptureMode mode = ScrollCaptureMode.Automatic, IWin32Window owner = null)
         {
+            bool manual = mode == ScrollCaptureMode.Manual;
             await Task.Delay(_options.StartDelayMs);
 
             var virtualScreen = SystemInformation.VirtualScreen;
@@ -77,7 +93,7 @@ namespace HUScroll.Core
             using (var screenshot = ScreenGrabber.CaptureBitmap(virtualScreen))
             {
                 var finder = new WindowFinder();
-                using (var selector = new RegionSelectorForm(screenshot, virtualScreen, finder))
+                using (var selector = new RegionSelectorForm(screenshot, virtualScreen, finder, manual))
                 {
                     var dialogResult = owner == null ? selector.ShowDialog() : selector.ShowDialog(owner);
                     if (dialogResult != DialogResult.OK)
@@ -97,7 +113,7 @@ namespace HUScroll.Core
                 return null;
             }
 
-            _log($"Selected area {area}");
+            _log($"Selected area {area}, mode {mode}");
             var originalCursor = ScrollDriver.GetCursorPosition();
             var center = new NativeMethods.POINT(area.Left + area.Width / 2, area.Top + area.Height / 2);
             if (topLevel == IntPtr.Zero)
@@ -114,6 +130,7 @@ namespace HUScroll.Core
             var engine = new StitchEngine(_options.Stitch);
 
             _status = new CaptureStatusForm();
+            _frame = new SelectionFrameForm(area, FrameColor);
             try
             {
                 _status.ApplyDpiScale();
@@ -121,8 +138,12 @@ namespace HUScroll.Core
                 {
                     _status.Show();
                 }
+                _frame.Show();
 
-                driver.Park();
+                if (!manual)
+                {
+                    driver.Park();
+                }
                 await WaitForEscapeReleasedAsync();
                 if (await DelayAsync(_options.AfterSelectionDelayMs))
                 {
@@ -133,7 +154,9 @@ namespace HUScroll.Core
                 if (frame == null) return null;
                 engine.Add(frame);
 
-                string reason = await ScrollLoopAsync(area, driver, engine);
+                string reason = manual
+                    ? await ManualLoopAsync(area, engine, frame)
+                    : await ScrollLoopAsync(area, driver, engine);
                 _log($"Finished: {reason}, {engine.FrameCount} frames, {engine.Width}x{engine.ResultHeight}");
 
                 var composed = engine.Compose();
@@ -142,10 +165,65 @@ namespace HUScroll.Core
             }
             finally
             {
+                _frame.Close();
+                _frame.Dispose();
+                _frame = null;
                 _status.Close();
                 _status.Dispose();
                 _status = null;
-                ScrollDriver.SetCursorPosition(originalCursor);
+                if (!manual)
+                {
+                    ScrollDriver.SetCursorPosition(originalCursor);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Manual mode: the user scrolls, every settled position which differs from the last one is offered to the stitching.
+        /// Scrolling back up is ignored (the deepest frame stays the reference), a gap (scrolled too far at once) turns the frame red.
+        /// </summary>
+        private async Task<string> ManualLoopAsync(Rectangle area, StitchEngine engine, FrameData first)
+        {
+            var lastGrab = first;
+            var lastProcessed = first;
+            string hint = "Mit dem Mausrad scrollen";
+            while (true)
+            {
+                SetStatus($"● {hint}  ·  {engine.FrameCount} Bilder · {engine.ResultHeight} px");
+                if (await DelayAsync(_options.ManualPollIntervalMs)) return ReasonUser;
+
+                var grab = ScreenGrabber.Capture(area);
+                bool settled = grab.PixelEquals(lastGrab);
+                lastGrab = grab;
+                if (!settled || grab.PixelEquals(lastProcessed)) continue;
+                lastProcessed = grab;
+
+                var result = engine.Add(grab);
+                _log($"Manual frame: {result}");
+                switch (result.Status)
+                {
+                    case StitchStatus.Appended:
+                        _frame.SetColor(FrameColor);
+                        hint = "Weiter scrollen – Esc / Fertig zum Beenden";
+                        break;
+                    case StitchStatus.LimitReached:
+                        return $"Maximale Höhe erreicht ({_options.Stitch.MaxOutputHeight} px)";
+                    case StitchStatus.ScrolledBack:
+                        _frame.SetColor(FrameColor);
+                        hint = "Zurückgescrollt – weiter unten geht's weiter";
+                        break;
+                    case StitchStatus.NoMovement:
+                        break;
+                    case StitchStatus.NoMatch:
+                        _frame.SetColor(FrameErrorColor);
+                        hint = "Kein Anschluss – etwas zurückscrollen";
+                        break;
+                }
+
+                if (engine.FrameCount >= _options.MaxFrames)
+                {
+                    return $"Maximale Anzahl Bilder erreicht ({_options.MaxFrames})";
+                }
             }
         }
 
@@ -178,6 +256,7 @@ namespace HUScroll.Core
                     case StitchStatus.LimitReached:
                         return $"Maximale Höhe erreicht ({_options.Stitch.MaxOutputHeight} px)";
                     case StitchStatus.NoMovement:
+                    case StitchStatus.ScrolledBack:
                         noMovement++;
                         if (noMovement > _options.NoMovementRetries)
                         {

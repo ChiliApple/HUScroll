@@ -17,7 +17,9 @@ namespace HUScroll.Core.Stitching
         /// <summary>No reliable overlap found, the frame was not appended</summary>
         NoMatch,
         /// <summary>The new rows were appended and the maximum height is reached</summary>
-        LimitReached
+        LimitReached,
+        /// <summary>The content moved down (the user scrolled back up), nothing appended, the deepest frame stays the reference</summary>
+        ScrolledBack
     }
 
     /// <summary>
@@ -244,6 +246,27 @@ namespace HUScroll.Core.Stitching
             {
                 // The content is at the same position (only something animated changed)
                 return new StitchResult(StitchStatus.NoMovement, 0, zeroScore);
+            }
+
+            // Content moved down (scrolled back up, manual mode): not appended, the previous (deepest) frame stays the reference,
+            // scrolling down again continues where the result ends
+            var currentInformative = InformativeRows(frame, mask, top, scrollRows, _options.InformativeRowMinTransitions, _quantize);
+            var backScores = new double[maxShift + 1];
+            backScores[0] = zeroScore;
+            int backShift = 0;
+            double backScore = -1;
+            for (int shift = 1; shift <= maxShift; shift++)
+            {
+                Score(currentHashes, previousHashes, currentInformative, shift, out double score, out _);
+                backScores[shift] = score;
+                if (score <= backScore) continue;
+                backScore = score;
+                backShift = shift;
+            }
+
+            if (backScore > bestScore && IsAccepted(backScores, backShift, backScore))
+            {
+                return new StitchResult(StitchStatus.ScrolledBack, -backShift, backScore);
             }
 
             if (!IsAccepted(scores, bestShift, bestScore))

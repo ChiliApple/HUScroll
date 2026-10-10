@@ -19,7 +19,8 @@ namespace Greenshot.Plugin.HUScroll
         private const string EditorDesignation = "Editor";
         private static readonly log4net.ILog Log = log4net.LogManager.GetLogger(typeof(HUScrollPlugin));
 
-        private ToolStripMenuItem _menuItem;
+        private ToolStripMenuItem _automaticItem;
+        private ToolStripMenuItem _manualItem;
         private bool _running;
 
         public string Name => "HUScroll";
@@ -28,25 +29,43 @@ namespace Greenshot.Plugin.HUScroll
 
         public bool Initialize()
         {
-            _menuItem = new ToolStripMenuItem
-            {
-                Text = "Scroll-Capture (HUScroll)",
-                Image = HUScrollIcon.Create(16),
-                ToolTipText = "Fenster oder Bereich wählen – HUScroll scrollt selbst und setzt alles zu einem Bild zusammen"
-            };
-            _menuItem.Click += OnMenuClick;
-            PluginUtils.AddToContextMenu(_menuItem);
+            _automaticItem = CreateMenuItem("Scroll-Capture automatisch (HUScroll)",
+                "Fenster oder Bereich wählen – HUScroll scrollt selbst und setzt alles zu einem Bild zusammen", ScrollCaptureMode.Automatic);
+            _manualItem = CreateMenuItem("Scroll-Capture manuell (HUScroll)",
+                "Rahmen wählen – du scrollst selbst, HUScroll nimmt laufend auf (Esc = fertig)", ScrollCaptureMode.Manual);
+            // AddToContextMenu inserts at the same position, so add in reverse order
+            PluginUtils.AddToContextMenu(_manualItem);
+            PluginUtils.AddToContextMenu(_automaticItem);
             Log.InfoFormat("HUScroll {0} initialized", typeof(HUScrollPlugin).Assembly.GetName().Version);
             return true;
         }
 
         public void Shutdown()
         {
-            if (_menuItem == null) return;
-            _menuItem.Click -= OnMenuClick;
-            _menuItem.Owner?.Items.Remove(_menuItem);
-            _menuItem.Dispose();
-            _menuItem = null;
+            RemoveMenuItem(ref _automaticItem);
+            RemoveMenuItem(ref _manualItem);
+        }
+
+        private ToolStripMenuItem CreateMenuItem(string text, string toolTip, ScrollCaptureMode mode)
+        {
+            var item = new ToolStripMenuItem
+            {
+                Text = text,
+                Image = HUScrollIcon.Create(16),
+                ToolTipText = toolTip,
+                Tag = mode
+            };
+            item.Click += OnMenuClick;
+            return item;
+        }
+
+        private void RemoveMenuItem(ref ToolStripMenuItem item)
+        {
+            if (item == null) return;
+            item.Click -= OnMenuClick;
+            item.Owner?.Items.Remove(item);
+            item.Dispose();
+            item = null;
         }
 
         public void Configure()
@@ -65,8 +84,9 @@ namespace Greenshot.Plugin.HUScroll
             _running = true;
             try
             {
+                var mode = (sender as ToolStripItem)?.Tag is ScrollCaptureMode tagged ? tagged : ScrollCaptureMode.Automatic;
                 var session = new ScrollCaptureSession(log: message => Log.Info(message));
-                var result = await session.RunAsync();
+                var result = await session.RunAsync(mode);
                 if (result?.Image == null) return;
 
                 string summary = $"{result.Image.Width} × {result.Image.Height} px aus {result.Frames} Bildern – {result.StopReason}";

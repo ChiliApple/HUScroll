@@ -13,7 +13,10 @@ Das Script erkennt die Greenshot-Version, kopiert die passende DLL, entfernt die
 Download-Sperre und startet Greenshot neu.
 
 Benutzung:
-  Rechtsklick aufs Greenshot-Tray-Symbol -> "Scroll-Capture (HUScroll)"
+  Rechtsklick aufs Greenshot-Tray-Symbol ->
+    "Scroll-Capture automatisch (HUScroll)": HUScroll scrollt selbst
+    "Scroll-Capture manuell (HUScroll)":     du scrollst selbst, Rahmen bleibt stehen
+                                             (roter Rahmen = etwas zurueckscrollen)
   - Klick: Fenster / Seiteninhalt unter der Maus
   - Ziehen: freier Bereich
   - Shift: ganzes Fenster statt Seiteninhalt

@@ -25,14 +25,16 @@ namespace HUScroll.Core.UI
         private readonly Font _hintFont = new Font("Segoe UI", 10f);
         private readonly Font _titleFont = new Font("Segoe UI", 12f, FontStyle.Bold);
         private readonly Rectangle _hintMonitor;
+        private readonly bool _manual;
 
         private Rectangle _selection = Rectangle.Empty; // screen coordinates
         private WindowHit _hover;
         private Point? _dragStart;
         private bool _dragging;
 
-        public RegionSelectorForm(Bitmap screenshot, Rectangle virtualScreen, WindowFinder finder)
+        public RegionSelectorForm(Bitmap screenshot, Rectangle virtualScreen, WindowFinder finder, bool manual = false)
         {
+            _manual = manual;
             _screenshot = screenshot;
             _virtualScreen = virtualScreen;
             _finder = finder;
@@ -222,7 +224,7 @@ namespace HUScroll.Core.UI
 
         private void DrawHint(Graphics g)
         {
-            const string title = "HUScroll – Scroll-Capture";
+            string title = _manual ? "HUScroll – Scroll-Capture manuell (danach selbst scrollen)" : "HUScroll – Scroll-Capture automatisch";
             const string hint = "Klick: Fenster / Seiteninhalt   ·   Ziehen: Bereich   ·   Shift: ganzes Fenster   ·   Esc: Abbrechen";
             var titleSize = g.MeasureString(title, _titleFont);
             var hintSize = g.MeasureString(hint, _hintFont);
