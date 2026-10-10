@@ -20,18 +20,67 @@
     Don't close / start Greenshot (the plugin is loaded at the next start)
 .PARAMETER Force
     Close Greenshot without asking, even when it doesn't close normally
+.PARAMETER AllUsers
+    Installation for all users of the PC, e.g. as Intune Win32 app (runs as SYSTEM, no user interaction):
+    - plugin always goes to <Greenshot folder>\Plugins\Greenshot.Plugin.HUScroll (Greenshot 1.3 and 1.4)
+    - Greenshot 1.3: copies in the users' %APPDATA%\Greenshot\Plugins are removed (never two copies)
+    - never asks; Greenshot is not closed by force. If Greenshot is running for a signed-in user after the install,
+      a short task in that user's session closes it normally and starts it again, so the plugin appears right away
+      (if it doesn't close - e.g. an editor with an unsaved image is open - it keeps running and the plugin appears
+      at the next start). -NoRestart: never restart.
+    - exit code 0 = OK, 1618 = plugin file in use (Greenshot running) - Intune retries later, 1 = error
+    - log: %ProgramData%\HUScroll\Install-HUScroll.log
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File .\Install-HUScroll.ps1
+.EXAMPLE
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Install-HUScroll.ps1 -AllUsers
+    (Intune: install command; uninstall command with -AllUsers -Uninstall;
+     detection: file C:\Program Files\Greenshot\Plugins\Greenshot.Plugin.HUScroll\Greenshot.Plugin.HUScroll.dll)
 #>
 [CmdletBinding()]
 param(
     [string]$GreenshotPath,
     [switch]$Uninstall,
     [switch]$NoRestart,
-    [switch]$Force
+    [switch]$Force,
+    [switch]$AllUsers
 )
 
 $ErrorActionPreference = 'Stop'
+$script:ExitCode = 1
+
+# 32-bit PowerShell on 64-bit Windows (e.g. started by a 32-bit installer service): restart as 64-bit,
+# otherwise %ProgramFiles% points to "Program Files (x86)" and Greenshot is not found
+if ([Environment]::Is64BitOperatingSystem -and -not [Environment]::Is64BitProcess) {
+    $ps64 = Join-Path $env:windir 'sysnative\WindowsPowerShell\v1.0\powershell.exe'
+    if (Test-Path -LiteralPath $ps64) {
+        $argList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"")
+        if ($GreenshotPath) { $argList += @('-GreenshotPath', "`"$GreenshotPath`"") }
+        foreach ($sw in 'Uninstall', 'NoRestart', 'Force', 'AllUsers') { if ((Get-Variable -Name $sw -ValueOnly)) { $argList += "-$sw" } }
+        $p = Start-Process -FilePath $ps64 -ArgumentList $argList -Wait -PassThru -NoNewWindow
+        exit $p.ExitCode
+    }
+}
+
+# -AllUsers (Intune, SYSTEM): no questions, no restart, log file, defined exit codes
+trap {
+    if ($AllUsers) {
+        Write-Host "ERROR: $($_.Exception.Message)"
+        try { Stop-Transcript | Out-Null } catch { }
+        exit $script:ExitCode
+    }
+    break
+}
+$script:UserRestart = $AllUsers -and -not $NoRestart
+if ($AllUsers) {
+    $NoRestart = $true
+    try {
+        $logDir = Join-Path $env:ProgramData 'HUScroll'
+        New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+        Start-Transcript -LiteralPath (Join-Path $logDir 'Install-HUScroll.log') -Append | Out-Null
+    } catch { }
+    Write-Host "HUScroll $(if ($Uninstall) { 'uninstall' } else { 'install' }) for all users - account: $([Security.Principal.WindowsIdentity]::GetCurrent().Name)"
+}
 $pluginFolderName = 'Greenshot.Plugin.HUScroll'
 $pluginFileName = 'Greenshot.Plugin.HUScroll.dll'
 
@@ -109,12 +158,26 @@ $appDataTarget = Join-Path $env:APPDATA "Greenshot\Plugins\$pluginFolderName"
 $programTarget = Join-Path $greenshotDir "Plugins\$pluginFolderName"
 $pafTarget = Join-Path $pafDir "Plugins\$pluginFolderName"
 
+# -AllUsers: copies in the users' profiles (Greenshot 1.3 also loads from %APPDATA%\Greenshot)
+function Get-UserProfilePluginFolders {
+    $usersRoot = Split-Path -Parent $env:PUBLIC
+    if (-not $usersRoot -or -not (Test-Path -LiteralPath $usersRoot)) { return @() }
+    return @(Get-ChildItem -LiteralPath $usersRoot -Directory -Force -ErrorAction SilentlyContinue | ForEach-Object {
+        Join-Path $_.FullName "AppData\Roaming\Greenshot\Plugins\$pluginFolderName"
+    })
+}
+
 if ($version.Major -eq 1 -and $version.Minor -eq 3) {
     $variant = 'Greenshot-1.3'
     # 1.3 loads from %APPDATA%\Greenshot and from its own folder (both recursive), PortableApps only from App\Greenshot
     $target = if ($isPaf) { $pafTarget } else { $appDataTarget }
     # Copies this Greenshot would load as well (never two copies)
     $duplicates = if ($isPaf) { @() } else { @($programTarget) }
+    if ($AllUsers -and -not $isPaf) {
+        # 1.3 loads from its own folder as well (recursive) - one copy there serves all users
+        $target = $programTarget
+        $duplicates = @(Get-UserProfilePluginFolders)
+    }
 }
 elseif ($version.Major -eq 1 -and $version.Minor -ge 4) {
     $variant = 'Greenshot-1.4'
@@ -140,7 +203,63 @@ if (-not $Uninstall -and -not (Test-Path -LiteralPath $source -PathType Leaf)) {
 $wasRunning = $false
 if (-not $NoRestart) { $wasRunning = Stop-ThisGreenshot $exe }
 
+# -AllUsers: running Greenshot (signed-in users) is closed normally IN the user's session with "Greenshot.exe /exit"
+# (a service cannot do that itself), the plugin is replaced, then the same task starts Greenshot again.
+# Never forced: if Greenshot stays open (editor with unsaved image), it keeps running.
+$script:RestartTask = $null
+$script:RestartFlag = $null
+function Get-GreenshotProcesses { @(Get-Process -Name 'Greenshot' -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exe }) }
+if ($script:UserRestart -and (Get-GreenshotProcesses).Count) {
+    try {
+        $dir = Join-Path $env:ProgramData 'HUScroll'
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+        $script:RestartFlag = Join-Path $dir 'restart.flag'
+        Remove-Item -LiteralPath $script:RestartFlag -Force -ErrorAction SilentlyContinue
+        $restart = Join-Path $dir 'Restart-Greenshot.ps1'
+        $code = @'
+$exe = '__EXE__'
+$flag = '__FLAG__'
+$me = (Get-Process -Id $PID).SessionId
+function Get-Mine { @(Get-Process -Name 'Greenshot' -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exe -and $_.SessionId -eq $me }) }
+if (-not (Get-Mine).Count) { exit 0 }
+Start-Process -FilePath $exe -ArgumentList '/exit'
+# wait until the installer has replaced the plugin (max. 90 s)
+for ($i = 0; $i -lt 90 -and -not (Test-Path -LiteralPath $flag); $i++) { Start-Sleep -Seconds 1 }
+Start-Sleep -Seconds 1
+if ((Get-Mine).Count) { exit 2 }
+Start-Process -FilePath $exe
+exit 0
+'@
+        $code = $code.Replace('__EXE__', ($exe -replace "'", "''")).Replace('__FLAG__', ($script:RestartFlag -replace "'", "''"))
+        Set-Content -LiteralPath $restart -Value $code -Encoding UTF8
+        $script:RestartTask = 'HUScroll Greenshot restart'
+        $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$restart`""
+        # group Users by SID (every Windows language) = runs in the session of each signed-in user
+        $principal = New-ScheduledTaskPrincipal -GroupId 'S-1-5-32-545' -RunLevel Limited
+        Register-ScheduledTask -TaskName $script:RestartTask -Action $action -Principal $principal -Force | Out-Null
+        Start-ScheduledTask -TaskName $script:RestartTask
+        Write-Host 'Closing Greenshot in the user session (Greenshot.exe /exit) ...'
+        for ($i = 0; $i -lt 20 -and (Get-GreenshotProcesses).Count; $i++) { Start-Sleep -Seconds 1 }
+        Write-Host "Greenshot processes still running: $((Get-GreenshotProcesses).Count)"
+    } catch {
+        Write-Host "Closing Greenshot in the user session not possible: $($_.Exception.Message)"
+    }
+}
+
 try {
+    # -AllUsers: Greenshot still open (not closed in the user session) - a loaded plugin file cannot be replaced, Intune retries later (1618)
+    if ($AllUsers) {
+        foreach ($folder in $toRemove) {
+            $dll = Join-Path $folder $pluginFileName
+            if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) { continue }
+            try { $fs = [IO.File]::Open($dll, 'Open', 'ReadWrite', 'None'); $fs.Dispose() }
+            catch {
+                $script:ExitCode = 1618
+                throw "Plugin file in use (Greenshot is running): $dll - nothing changed, retry later"
+            }
+        }
+    }
+
     # Never leave two copies (Greenshot would load both)
     foreach ($folder in $toRemove) {
         Remove-Item -LiteralPath $folder -Recurse -Force
@@ -159,9 +278,28 @@ try {
     }
 }
 finally {
+    # -AllUsers: let the task start Greenshot again, then remove it
+    if ($script:RestartTask) {
+        try {
+            Set-Content -LiteralPath $script:RestartFlag -Value 'done' -Encoding ASCII
+            for ($i = 0; $i -lt 30; $i++) {
+                Start-Sleep -Seconds 1
+                if ((Get-ScheduledTask -TaskName $script:RestartTask).State -ne 'Running') { break }
+            }
+            $info = Get-ScheduledTaskInfo -TaskName $script:RestartTask
+            Write-Host "Greenshot restart in the user session: result $($info.LastTaskResult) (0 = restarted, 2 = still open - plugin at next start)"
+            Unregister-ScheduledTask -TaskName $script:RestartTask -Confirm:$false
+            Remove-Item -LiteralPath $script:RestartFlag, (Join-Path (Split-Path $script:RestartFlag -Parent) 'Restart-Greenshot.ps1') -Force -ErrorAction SilentlyContinue
+        } catch { Write-Host "Restart task: $($_.Exception.Message)" }
+    }
     # Start Greenshot again even when something failed above
     if (-not $NoRestart -and ($wasRunning -or -not $Uninstall)) {
         Write-Host 'Starting Greenshot ...'
         Start-Process -FilePath $exe
     }
+}
+
+if ($AllUsers) {
+    try { Stop-Transcript | Out-Null } catch { }
+    exit 0
 }
