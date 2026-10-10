@@ -1,0 +1,18 @@
+<Project>
+  <!-- Shared settings of all HUScroll projects -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <Version>0.1.0</Version>
+    <Product>HUScroll</Product>
+    <Company>ChiliApple</Company>
+    <Copyright>Copyright (C) 2026 ChiliApple</Copyright>
+    <Deterministic>true</Deterministic>
+    <!-- Greenshot binaries to compile against, downloaded by tools/Get-GreenshotRefs.ps1 (not in the repo) -->
+    <HUScrollLibDir>$(MSBuildThisFileDirectory)lib\</HUScrollLibDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    HUScroll for Greenshot 1.3.x (built against 1.3.323).
+    Greenshot loads Plugins\**\Greenshot.Plugin.*.dll and creates the type <AssemblyName>.<Suffix>Plugin,
+    so the assembly must be "Greenshot.Plugin.HUScroll" with the class Greenshot.Plugin.HUScroll.HUScrollPlugin.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <AssemblyName>Greenshot.Plugin.HUScroll</AssemblyName>
+    <RootNamespace>Greenshot.Plugin.HUScroll</RootNamespace>
+    <AssemblyTitle>HUScroll for Greenshot 1.3</AssemblyTitle>
+    <GreenshotDir>$(HUScrollLibDir)greenshot-1.3\</GreenshotDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\HUScroll.Core\**\*.cs" Exclude="..\HUScroll.Core\obj\**;..\HUScroll.Core\bin\**" Link="Core\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="Greenshot.Base">
+      <HintPath>$(GreenshotDir)Greenshot.Base.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="log4net">
+      <HintPath>$(GreenshotDir)log4net.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+  <Target Name="CheckGreenshotRefs" BeforeTargets="ResolveAssemblyReferences" Condition="!Exists('$(GreenshotDir)Greenshot.Base.dll')">
+    <Error Text="Greenshot 1.3 binaries missing in $(GreenshotDir) - run tools/Get-GreenshotRefs.ps1 first." />
+  </Target>
+</Project>

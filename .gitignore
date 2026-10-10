@@ -426,3 +426,6 @@ FodyWeavers.xsd
 
 # Official VS Code C# Dev Kit Extension exclusion
 #*.lscache
+
+# HUScroll: Greenshot binaries (tools/Get-GreenshotRefs.ps1)
+lib/

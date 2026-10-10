@@ -1,0 +1,23 @@
+HUScroll - Scroll-Capture fuer Greenshot
+========================================
+
+Installation (Zielmaschine: der PC, auf dem Greenshot laeuft):
+
+  1. ZIP entpacken
+  2. PowerShell in diesem Ordner oeffnen
+     - Greenshot 1.3: normale PowerShell reicht
+     - Greenshot 1.4: PowerShell als Administrator (Plugin muss in den Programmordner)
+  3. powershell -ExecutionPolicy Bypass -File .\Install-HUScroll.ps1
+
+Das Script erkennt die Greenshot-Version, kopiert die passende DLL, entfernt die
+Download-Sperre und startet Greenshot neu.
+
+Benutzung:
+  Rechtsklick aufs Greenshot-Tray-Symbol -> "Scroll-Capture (HUScroll)"
+  - Klick: Fenster / Seiteninhalt unter der Maus
+  - Ziehen: freier Bereich
+  - Shift: ganzes Fenster statt Seiteninhalt
+  - Esc / "Fertig": Aufnahme beenden, Ergebnis oeffnet sich im Greenshot-Editor
+
+Deinstallation:
+  powershell -ExecutionPolicy Bypass -File .\Install-HUScroll.ps1 -Uninstall

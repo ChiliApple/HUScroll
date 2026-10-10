@@ -1,0 +1,50 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{38C10A21-7A4B-4E17-BA8B-E31C5067B8C0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HUScroll.Core", "src\HUScroll.Core\HUScroll.Core.csproj", "{08229927-E323-41FF-ACF8-AC011BA7164D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Greenshot.Plugin.HUScroll.V13", "src\Greenshot.Plugin.HUScroll.V13\Greenshot.Plugin.HUScroll.V13.csproj", "{2A8FD767-590E-43C0-9CAB-60AE008B6CF8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Greenshot.Plugin.HUScroll.V14", "src\Greenshot.Plugin.HUScroll.V14\Greenshot.Plugin.HUScroll.V14.csproj", "{460CBA0C-D0E3-4705-A0C1-BD0C6188D7C0}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{322396AF-F104-4189-BD0F-DC27E8213704}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HUScroll.Tests", "tests\HUScroll.Tests\HUScroll.Tests.csproj", "{4D9F873E-E22B-49B5-B79E-49C9E77C3DAC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{08229927-E323-41FF-ACF8-AC011BA7164D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{08229927-E323-41FF-ACF8-AC011BA7164D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{08229927-E323-41FF-ACF8-AC011BA7164D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{08229927-E323-41FF-ACF8-AC011BA7164D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2A8FD767-590E-43C0-9CAB-60AE008B6CF8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2A8FD767-590E-43C0-9CAB-60AE008B6CF8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2A8FD767-590E-43C0-9CAB-60AE008B6CF8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2A8FD767-590E-43C0-9CAB-60AE008B6CF8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{460CBA0C-D0E3-4705-A0C1-BD0C6188D7C0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{460CBA0C-D0E3-4705-A0C1-BD0C6188D7C0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{460CBA0C-D0E3-4705-A0C1-BD0C6188D7C0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{460CBA0C-D0E3-4705-A0C1-BD0C6188D7C0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4D9F873E-E22B-49B5-B79E-49C9E77C3DAC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4D9F873E-E22B-49B5-B79E-49C9E77C3DAC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4D9F873E-E22B-49B5-B79E-49C9E77C3DAC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4D9F873E-E22B-49B5-B79E-49C9E77C3DAC}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{08229927-E323-41FF-ACF8-AC011BA7164D} = {38C10A21-7A4B-4E17-BA8B-E31C5067B8C0}
+		{2A8FD767-590E-43C0-9CAB-60AE008B6CF8} = {38C10A21-7A4B-4E17-BA8B-E31C5067B8C0}
+		{460CBA0C-D0E3-4705-A0C1-BD0C6188D7C0} = {38C10A21-7A4B-4E17-BA8B-E31C5067B8C0}
+		{4D9F873E-E22B-49B5-B79E-49C9E77C3DAC} = {322396AF-F104-4189-BD0F-DC27E8213704}
+	EndGlobalSection
+EndGlobal
