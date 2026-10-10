@@ -89,7 +89,11 @@ namespace Greenshot.Plugin.HUScroll
                     Log.Warn("The Greenshot editor did not open the scroll capture");
                 }
 
-                Notify(summary);
+                if (!result.IsNormalEnd)
+                {
+                    // Only tell the user when something unexpected happened (Windows plays a sound with every notification)
+                    Notify(summary);
+                }
             }
             catch (Exception ex)
             {

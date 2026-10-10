@@ -14,13 +14,20 @@ namespace HUScroll.Core
     /// </summary>
     public sealed class ScrollCaptureResult
     {
-        public ScrollCaptureResult(Bitmap image, int frames, string stopReason, Rectangle area)
+        public ScrollCaptureResult(Bitmap image, int frames, string stopReason, Rectangle area, bool isNormalEnd)
         {
             Image = image;
             Frames = frames;
             StopReason = stopReason;
             Area = area;
+            IsNormalEnd = isNormalEnd;
         }
+
+        /// <summary>
+        /// True when the capture ended as expected (end of the content, or stopped by the user):
+        /// nothing to tell the user then, the editor opening is feedback enough
+        /// </summary>
+        public bool IsNormalEnd { get; }
 
         /// <summary>The stitched image, the caller owns it</summary>
         public Bitmap Image { get; }
@@ -42,10 +49,13 @@ namespace HUScroll.Core
     public sealed class ScrollCaptureSession
     {
         private const int PollIntervalMs = 25;
+        internal const string ReasonEnd = "Ende erreicht";
+        internal const string ReasonUser = "Vom Benutzer beendet";
 
         private readonly ScrollCaptureOptions _options;
         private readonly Action<string> _log;
         private CaptureStatusForm _status;
+        private double _maxPixelsPerNotch;
 
         public ScrollCaptureSession(ScrollCaptureOptions options = null, Action<string> log = null)
         {
@@ -127,7 +137,8 @@ namespace HUScroll.Core
                 _log($"Finished: {reason}, {engine.FrameCount} frames, {engine.Width}x{engine.ResultHeight}");
 
                 var composed = engine.Compose();
-                return new ScrollCaptureResult(ScreenGrabber.ToBitmap(composed), engine.FrameCount, reason, area);
+                bool isNormalEnd = reason == ReasonEnd || reason == ReasonUser;
+                return new ScrollCaptureResult(ScreenGrabber.ToBitmap(composed), engine.FrameCount, reason, area, isNormalEnd);
             }
             finally
             {
@@ -145,16 +156,16 @@ namespace HUScroll.Core
             for (int i = 1; i < _options.MaxFrames; i++)
             {
                 SetStatus($"● Aufnahme läuft …  {engine.FrameCount} Bilder · {engine.ResultHeight} px");
-                if (StopRequested()) return "Vom Benutzer beendet";
+                if (StopRequested()) return ReasonUser;
 
                 if (!driver.ScrollDown(notches))
                 {
                     return "Scrollen wurde blockiert (läuft das Programm als Administrator?)";
                 }
 
-                if (await DelayAsync(_options.SettleDelayMs)) return "Vom Benutzer beendet";
+                if (await DelayAsync(_options.SettleDelayMs)) return ReasonUser;
                 var frame = await GrabSettledAsync(area);
-                if (frame == null) return "Vom Benutzer beendet";
+                if (frame == null) return ReasonUser;
 
                 var result = engine.Add(frame);
                 _log($"Frame {i}: {result} (notches={notches})");
@@ -172,7 +183,7 @@ namespace HUScroll.Core
                         {
                             return engine.FrameCount <= 1
                                 ? "Der Inhalt hat sich nicht bewegt (nicht scrollbar, oder Mauszeiger über einem anderen Element)"
-                                : "Ende erreicht";
+                                : ReasonEnd;
                         }
                         break;
                     case StitchStatus.NoMatch:
@@ -189,7 +200,10 @@ namespace HUScroll.Core
         private int NextNotches(StitchEngine engine, int frameHeight, int shift, int notches)
         {
             if (shift <= 0) return notches;
-            double pixelsPerNotch = (double)shift / notches;
+            // The largest measured distance per notch counts: a smaller shift usually means the end of the page was reached
+            // (the content couldn't move further), it must not lead to a huge jump with many notches
+            _maxPixelsPerNotch = Math.Max(_maxPixelsPerNotch, (double)shift / notches);
+            double pixelsPerNotch = _maxPixelsPerNotch;
             int scrollArea = Math.Max(1, frameHeight - engine.Header - engine.Footer);
             double target = scrollArea * _options.TargetScrollFraction;
             int next = (int)Math.Floor(target / pixelsPerNotch);

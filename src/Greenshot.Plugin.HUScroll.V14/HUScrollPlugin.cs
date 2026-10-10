@@ -89,7 +89,11 @@ namespace Greenshot.Plugin.HUScroll
 
                 // Opens the editor in the background (1.4 exports asynchronously)
                 DestinationHelper.StartExport(EditorDesignation, surface, true);
-                Notify(summary);
+                if (!result.IsNormalEnd)
+                {
+                    // Only tell the user when something unexpected happened (Windows plays a sound with every notification)
+                    Notify(summary);
+                }
             }
             catch (Exception ex)
             {

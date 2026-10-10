@@ -3,7 +3,7 @@
   <PropertyGroup>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
-    <Version>0.1.1</Version>
+    <Version>0.1.2</Version>
     <Product>HUScroll</Product>
     <Company>ChiliApple</Company>
     <Copyright>Copyright (C) 2026 ChiliApple</Copyright>
