@@ -518,5 +518,57 @@ namespace HUScroll.Tests
                 offset = next;
             }
         }
+
+        /// <summary>
+        /// Sparse page (review finding H1): 12 px text lines every 48 px, white in between - scrolling changes only ~25 % of the rows
+        /// </summary>
+        private static int[] CreateSparsePage(int rows, int seed, int period)
+        {
+            var random = new Random(seed);
+            var page = new int[Width * rows];
+            for (int y = 0; y < rows; y++)
+            {
+                bool text = y % period < 12;
+                for (int x = 0; x < Width; x++)
+                    page[y * Width + x] = text && x > 20 && x < Width - 80 && random.Next(3) == 0
+                        ? unchecked((int)0xFF000000) | random.Next(0, 0x404040)
+                        : unchecked((int)0xFFFFFFFF);
+            }
+            return page;
+        }
+
+        [Theory]
+        [InlineData(48, 20)]
+        [InlineData(48, 100)]
+        [InlineData(80, 60)]
+        [InlineData(80, 120)]
+        public void SparsePage_ScrollingIsNotMistakenForAnimation(int period, int step)
+        {
+            const int pageRows = 4000, viewRows = 600;
+            var page = CreateSparsePage(pageRows, 22, period);
+            var detector = new AnimationDetector(Width, viewRows);
+            Assert.False(detector.Observe(Viewport(page, pageRows, 300, viewRows, 0, 0, false, 0), Viewport(page, pageRows, 300 + step, viewRows, 0, 0, false, 0)));
+            Assert.Null(detector.Mask);
+        }
+
+        [Fact]
+        public void SparsePage_ManualLoop_AppendsEverything()
+        {
+            // Simulation of the manual loop: grab, calm check with the detector, skip "nothing new", add
+            const int pageRows = 3900, viewRows = 600;
+            var page = CreateSparsePage(pageRows, 23, 48);
+            var engine = new StitchEngine();
+            var lastProcessed = Viewport(page, pageRows, 0, viewRows, 0, 0, false, 0);
+            engine.Add(lastProcessed);
+            for (int offset = 100; offset <= pageRows - viewRows; offset += 100)
+            {
+                var grab = Viewport(page, pageRows, offset, viewRows, 0, 0, false, 0);
+                Assert.False(new AnimationDetector(Width, viewRows).Observe(lastProcessed, grab), $"offset {offset}: treated as nothing new");
+                lastProcessed = grab;
+                Assert.Equal(StitchStatus.Appended, engine.Add(grab).Status);
+            }
+
+            Assert.Equal(pageRows, engine.Compose().Height);
+        }
     }
 }
