@@ -11,7 +11,7 @@ Lange Webseiten und Fenster als ein Bild – automatisch gescrollt oder selbst g
   <img src="https://img.shields.io/badge/Lizenz-GPLv3-orange" alt="Lizenz GPLv3">
 </p>
 
-<p align="center"><a href="#benutzung">Benutzung</a> · <a href="#installation">Installation</a> · <a href="CHANGELOG.md">Änderungen</a> · <a href="#geplant">Geplant</a> · <a href="#lizenz">Lizenz</a></p>
+<p align="center"><a href="#benutzung">Benutzung</a> · <a href="#installation">Installation</a> · <a href="CHANGELOG.md">Änderungen</a> · <a href="#lizenz">Lizenz</a></p>
 
 ---
 
@@ -75,29 +75,9 @@ Deinstallation: `Install-HUScroll.ps1 -Uninstall`
 - Programme, die als Administrator laufen, nehmen von Greenshot (ohne Adminrechte) keine Mausrad-Eingaben an.
 - Fixe Elemente mitten im Inhalt (z. B. schwebende Buttons) erscheinen mehrfach – im Editor wegschneiden.
 
-## Geplant
-
-- **Tastenkürzel** für beide Modi: wird beim Greenshot-Projekt angefragt (Plugin-Hotkeys in den Greenshot-Einstellungen), Entwurf: [docs/feature-request-hotkeys.md](docs/feature-request-hotkeys.md). Bis dahin über das Tray-Menü.
-
 ## Bauen
 
-```powershell
-# Zielmaschine: Build-PC (Windows) mit .NET SDK 8
-.\tools\Get-GreenshotRefs.ps1     # Greenshot-DLLs nach .\lib laden (nicht im Repo)
-dotnet test tests\HUScroll.Tests
-dotnet build src\Greenshot.Plugin.HUScroll.V13 -c Release
-dotnet build src\Greenshot.Plugin.HUScroll.V14 -c Release
-```
-
-GitHub Actions baut bei jedem Push beide Varianten (Artefakt `HUScroll-<Version>`), ein Tag `v*` erzeugt ein Release mit ZIP.
-
-```
-src/HUScroll.Core/                  Auswahl, Scrollen, Zusammensetzen (kennt Greenshot nicht)
-src/Greenshot.Plugin.HUScroll.V13/  Anbindung Greenshot 1.3 (Tray-Menü, Editor)
-src/Greenshot.Plugin.HUScroll.V14/  Anbindung Greenshot 1.4 (Tray-Menü, Editor)
-tests/HUScroll.Tests/               Tests der StitchEngine (laufen auch unter Linux)
-tools/                              Referenzen laden, Installation
-```
+Bauanleitung und Projektaufbau für Entwickler: [docs/BUILD.md](docs/BUILD.md)
 
 ## Lizenz
 
