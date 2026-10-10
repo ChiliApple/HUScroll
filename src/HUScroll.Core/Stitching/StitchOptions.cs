@@ -52,6 +52,16 @@ namespace HUScroll.Core.Stitching
         public double MinPeakMargin { get; set; } = 0.2;
 
         /// <summary>
+        /// Estimating (no clear match, expected shift known): the best shift needs at least this score, otherwise the expected shift is used
+        /// </summary>
+        public double MinEstimateScore { get; set; } = 0.15;
+
+        /// <summary>
+        /// How many estimated frames in a row are allowed before the capture stops with NoMatch
+        /// </summary>
+        public int MaxConsecutiveEstimates { get; set; } = 1;
+
+        /// <summary>
         /// Low bits of each color channel which are ignored when comparing (anti-aliasing / rendering noise)
         /// </summary>
         public int IgnoreLowColorBits { get; set; } = 3;

@@ -295,5 +295,102 @@ namespace HUScroll.Tests
             for (int x = 0; x < Width - 24; x++)
                 Assert.Equal(page[y * Width + x], composed[x, y]);
         }
+
+        /// <summary>
+        /// A "GIF": a box which moves with the content and shows a different random picture in every grab
+        /// </summary>
+        private static void PaintGif(FrameData frame, int boxTopInFrame, int boxHeight, Random random)
+        {
+            for (int y = Math.Max(0, boxTopInFrame); y < Math.Min(frame.Height, boxTopInFrame + boxHeight); y++)
+            for (int x = 20; x < Width - 60; x++)
+                frame.Pixels[y * Width + x] = unchecked((int)0xFF000000) | random.Next(0, 0xFFFFFF);
+        }
+
+        [Fact]
+        public void AnimatedGif_IsMaskedAndMatches()
+        {
+            const int pageRows = 2400, viewRows = 600, step = 300, gifTop = 500, gifHeight = 260;
+            var page = CreatePage(pageRows, 11);
+            var random = new Random(12);
+            var engine = new StitchEngine();
+
+            FrameData GrabWithDetection(int offset)
+            {
+                // two grabs at the same position, the GIF shows another picture each time
+                var first = Viewport(page, pageRows, offset, viewRows, 0, 0, false, 0);
+                PaintGif(first, gifTop - offset, gifHeight, random);
+                var second = Viewport(page, pageRows, offset, viewRows, 0, 0, false, 0);
+                PaintGif(second, gifTop - offset, gifHeight, random);
+                var detector = new AnimationDetector(Width, viewRows);
+                Assert.True(detector.Observe(first, second));
+                second.Animated = detector.GetUsableMask();
+                return second;
+            }
+
+            engine.Add(GrabWithDetection(0));
+            int offset = 0;
+            while (offset < pageRows - viewRows)
+            {
+                int next = Math.Min(offset + step, pageRows - viewRows);
+                var result = engine.Add(GrabWithDetection(next));
+                Assert.Equal(StitchStatus.Appended, result.Status);
+                Assert.False(result.Estimated);
+                Assert.Equal(next - offset, result.Shift);
+                offset = next;
+            }
+
+            Assert.Equal(pageRows, engine.Compose().Height);
+        }
+
+        [Fact]
+        public void Scrolling_IsNotMistakenForAnimation()
+        {
+            var page = CreatePage(1200, 13);
+            var detector = new AnimationDetector(Width, 400);
+            Assert.False(detector.Observe(Viewport(page, 1200, 0, 400, 0, 0, false, 0), Viewport(page, 1200, 30, 400, 0, 0, false, 0)));
+            Assert.True(detector.Observe(Viewport(page, 1200, 30, 400, 0, 0, false, 0), Viewport(page, 1200, 30, 400, 0, 0, false, 0)));
+            Assert.Null(detector.Mask);
+        }
+
+        [Fact]
+        public void HugeChange_IsEstimatedFromTheExpectedShift()
+        {
+            // A video fills most of the overlap: no clear match, but the expected scroll distance is known
+            const int pageRows = 2000, viewRows = 500;
+            var page = CreatePage(pageRows, 14);
+            var random = new Random(15);
+            var engine = new StitchEngine();
+            engine.Add(Viewport(page, pageRows, 0, viewRows, 0, 0, false, 0));
+            Assert.Equal(StitchStatus.Appended, engine.Add(Viewport(page, pageRows, 250, viewRows, 0, 0, false, 0)).Status);
+
+            var noisy = Viewport(page, pageRows, 500, viewRows, 0, 0, false, 0);
+            PaintGif(noisy, 0, 400, random); // 80 % of the frame changed, no mask (not detected)
+            Assert.Equal(StitchStatus.NoMatch, new StitchEngineProbe(page, pageRows, viewRows).Add(noisy));
+
+            var estimated = engine.Add(noisy, expectedShift: 250);
+            Assert.Equal(StitchStatus.Appended, estimated.Status);
+            Assert.True(estimated.Estimated);
+            Assert.Equal(250, estimated.Shift);
+            Assert.Equal(1, engine.EstimatedCount);
+
+            // the next frame is clean again and matches normally
+            var clean = engine.Add(Viewport(page, pageRows, 750, viewRows, 0, 0, false, 0), expectedShift: 250);
+            Assert.Equal(StitchStatus.Appended, clean.Status);
+            Assert.False(clean.Estimated);
+        }
+
+        /// <summary>Same two first frames, without an expected shift</summary>
+        private sealed class StitchEngineProbe
+        {
+            private readonly StitchEngine _engine = new StitchEngine();
+
+            public StitchEngineProbe(int[] page, int pageRows, int viewRows)
+            {
+                _engine.Add(Viewport(page, pageRows, 0, viewRows, 0, 0, false, 0));
+                _engine.Add(Viewport(page, pageRows, 250, viewRows, 0, 0, false, 0));
+            }
+
+            public StitchStatus Add(FrameData frame) => _engine.Add(frame).Status;
+        }
     }
 }

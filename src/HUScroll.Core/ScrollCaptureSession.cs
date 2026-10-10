@@ -180,7 +180,11 @@ namespace HUScroll.Core
                 _log($"Finished: {reason}, {engine.FrameCount} frames, {engine.Width}x{engine.ResultHeight}");
 
                 var composed = engine.Compose();
-                bool isNormalEnd = reason == ReasonEnd || reason == ReasonUser;
+                if (engine.EstimatedCount > 0)
+                {
+                    reason += $" – {engine.EstimatedCount} Übergang/Übergänge geschätzt (bewegter Inhalt), bitte prüfen";
+                }
+                bool isNormalEnd = (reason == ReasonEnd || reason == ReasonUser) && engine.EstimatedCount == 0;
                 return new ScrollCaptureResult(ScreenGrabber.ToBitmap(composed), engine.FrameCount, reason, area, isNormalEnd);
             }
             finally
@@ -206,6 +210,7 @@ namespace HUScroll.Core
         {
             var lastGrab = first;
             var lastProcessed = first;
+            var detector = new AnimationDetector(area.Width, area.Height);
             string hint = "Mit dem Mausrad scrollen";
             while (true)
             {
@@ -213,9 +218,15 @@ namespace HUScroll.Core
                 if (await DelayAsync(_options.ManualPollIntervalMs)) return ReasonUser;
 
                 var grab = ScreenGrabber.Capture(area);
-                bool settled = grab.PixelEquals(lastGrab);
+                // Calm = same scroll position as the grab before: identical, or only an animation (GIF, video) changed
+                bool calm = grab.PixelEquals(lastGrab) || detector.Observe(lastGrab, grab);
+                if (!calm) detector.Reset();
                 lastGrab = grab;
-                if (!settled || grab.PixelEquals(lastProcessed)) continue;
+                if (!calm) continue;
+
+                // Nothing new since the last processed frame (apart from animations)
+                if (new AnimationDetector(area.Width, area.Height).Observe(lastProcessed, grab)) continue;
+                grab.Animated = detector.GetUsableMask();
                 lastProcessed = grab;
 
                 var result = engine.Add(grab);
@@ -265,13 +276,18 @@ namespace HUScroll.Core
                 var frame = await GrabSettledAsync(area);
                 if (frame == null) return ReasonUser;
 
-                var result = engine.Add(frame);
-                _log($"Frame {i}: {result} (notches={notches})");
+                int expectedShift = _maxPixelsPerNotch > 0 ? (int)(_maxPixelsPerNotch * notches) : 0;
+                var result = engine.Add(frame, expectedShift);
+                _log($"Frame {i}: {result} (notches={notches}, expected={expectedShift}{(frame.Animated != null ? ", animation masked" : "")})");
                 switch (result.Status)
                 {
                     case StitchStatus.Appended:
                         noMovement = 0;
-                        notches = NextNotches(engine, frame.Height, result.Shift, notches);
+                        // An estimated shift says nothing about the scroll distance per notch
+                        if (!result.Estimated)
+                        {
+                            notches = NextNotches(engine, frame.Height, result.Shift, notches);
+                        }
                         break;
                     case StitchStatus.LimitReached:
                         return $"Maximale Höhe erreicht ({_options.Stitch.MaxOutputHeight} px)";
@@ -310,21 +326,47 @@ namespace HUScroll.Core
         }
 
         /// <summary>
-        /// Grab until two grabs are identical (smooth scrolling, animations), at most MaxStableChecks times
+        /// Grab until the position is settled: two identical grabs, or two grabs in a row where only an animation changed
+        /// (GIF, video, carousel - those pixels are attached as <see cref="FrameData.Animated"/> and ignored for the matching).
+        /// At most MaxStableChecks times.
         /// </summary>
         /// <returns>The frame, null when the user stopped</returns>
         private async Task<FrameData> GrabSettledAsync(Rectangle area)
         {
+            var detector = new AnimationDetector(area.Width, area.Height);
             var last = ScreenGrabber.Capture(area);
+            int animatedCalm = 0;
             for (int i = 0; i < _options.MaxStableChecks; i++)
             {
                 if (await DelayAsync(_options.StableCheckDelayMs)) return null;
                 var current = ScreenGrabber.Capture(area);
-                if (current.PixelEquals(last)) return current;
+                if (current.PixelEquals(last))
+                {
+                    current.Animated = detector.GetUsableMask();
+                    return current;
+                }
+
+                if (detector.Observe(last, current))
+                {
+                    animatedCalm++;
+                    if (animatedCalm >= 2)
+                    {
+                        current.Animated = detector.GetUsableMask();
+                        return current;
+                    }
+                }
+                else
+                {
+                    // still scrolling
+                    detector.Reset();
+                    animatedCalm = 0;
+                }
+
                 last = current;
             }
 
             _log("Frame did not settle, using the last grab");
+            last.Animated = detector.GetUsableMask();
             return last;
         }
 

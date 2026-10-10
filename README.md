@@ -18,7 +18,7 @@ Lange Webseiten und Fenster als ein Bild – automatisch gescrollt oder selbst g
 | Greenshot | Plugin-Variante | Gebaut gegen | Status |
 |---|---|---|---|
 | 1.3.x | `Greenshot-1.3` (.NET Framework 4.7.2) | 1.3.323 | Hauptvariante |
-| 1.4.x | `Greenshot-1.4` (.NET Framework 4.8) | 1.4.324 (Continuous Build) | Plugin-API kann sich noch ändern |
+| 1.4.x | `Greenshot-1.4` (.NET Framework 4.8) | 1.4.324 (Continuous Build) | getestet; Plugin-API kann sich noch ändern |
 
 ## Benutzung
 
@@ -61,7 +61,7 @@ Deinstallation: `Install-HUScroll.ps1 -Uninstall`
 
 1. **Auswahl**: Vollbild-Overlay auf einem eingefrorenen Screenshot, Fenster unter der Maus werden hervorgehoben (`WindowFinder`, `RegionSelectorForm`).
 2. **Scrollen**: Mausrad-Eingaben per `SendInput` in die Mitte des Bereichs, danach wird der Mauszeiger aus dem Bereich geparkt (keine Hover-Effekte). Die Schrittweite passt sich an: ca. 50 % des scrollenden Bereichs pro Schritt, der Rest ist Überlappung.
-3. **Warten**: nach jedem Schritt wird so lange aufgenommen, bis zwei Aufnahmen identisch sind (Smooth-Scrolling, Lazy Loading).
+3. **Warten**: nach jedem Schritt wird so lange aufgenommen, bis zwei Aufnahmen identisch sind oder sich nur noch ein begrenzter Teil ändert (Smooth-Scrolling, Lazy Loading). Was sich ohne Scrollen ändert, gilt als Animation und wird beim Vergleich ausgeblendet (`AnimationDetector`).
 4. **Zusammensetzen** (`StitchEngine`, plattformunabhängig und getestet):
    - Fixe Kopf-/Fußzeilen (Sticky Header, Browser-Leisten) werden erkannt und nur einmal übernommen.
    - Scrollbalken (rechter Rand) und feste Seitenleisten werden beim Vergleich ignoriert.
@@ -70,7 +70,7 @@ Deinstallation: `Install-HUScroll.ps1 -Uninstall`
 
 ## Bekannte Grenzen
 
-- Inhalte, die sich beim Scrollen verändern (Animationen, Videos, Werbung), können zum Abbruch führen („Bilder passten nicht zusammen“) – das Ergebnis bis dahin bleibt erhalten.
+- Bewegte Inhalte (GIFs, Videos, Karussells) werden erkannt und beim Vergleich ausgeblendet. Ändert sich trotzdem zu viel, schätzt der Automatik-Modus den Übergang aus der Scrollweite und meldet das am Ende („… geschätzt, bitte prüfen“) – an diesen Stellen kann eine kleine Naht entstehen.
 - Seiten mit eigenem Scroll-Container: die Maus muss beim Start über dem scrollenden Bereich sein (Mitte des gewählten Bereichs).
 - Programme, die als Administrator laufen, nehmen von Greenshot (ohne Adminrechte) keine Mausrad-Eingaben an.
 - Fixe Elemente mitten im Inhalt (z. B. schwebende Buttons) erscheinen mehrfach – im Editor wegschneiden.

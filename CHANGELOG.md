@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.3.0
+- Bewegte Inhalte (GIF, Video, Karussell): werden beim Warten auf ein ruhiges Bild erkannt und beim Vergleich ausgeblendet, im Ergebnis bleiben sie erhalten
+- Automatik: kein Abbruch mehr bei unklarem Übergang – der Übergang wird aus der Scrollweite geschätzt (höchstens einmal hintereinander) und am Ende gemeldet
+- Manueller Modus: nimmt jetzt auch auf, wenn auf der Seite ständig etwas animiert ist (vorher wartete er auf ein völlig ruhiges Bild)
+- Getestet mit Greenshot 1.4.324 (Windows Sandbox)
+
 ## 0.2.2
 - Lizenz: GPLv3 (wie Greenshot), HU-Logo davon ausgenommen (Assets/LICENSE-LOGO.txt), Lizenzkopf in allen Quelldateien, LICENSE im Release-ZIP
 - Installer: PortableApps-Erkennung korrigiert (Ordner App\Greenshot statt greenshot.ini), eine 1.4-Installation löscht nicht mehr das 1.3-Plugin in %APPDATA%

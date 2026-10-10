@@ -47,12 +47,18 @@ namespace HUScroll.Core.Stitching
     /// </summary>
     public readonly struct StitchResult
     {
-        public StitchResult(StitchStatus status, int shift, double score)
+        public StitchResult(StitchStatus status, int shift, double score, bool estimated = false)
         {
             Status = status;
             Shift = shift;
             Score = score;
+            Estimated = estimated;
         }
+
+        /// <summary>
+        /// True when no clear match was found and the shift was estimated from the expected scroll distance
+        /// </summary>
+        public bool Estimated { get; }
 
         public StitchStatus Status { get; }
 
@@ -66,7 +72,7 @@ namespace HUScroll.Core.Stitching
         /// </summary>
         public double Score { get; }
 
-        public override string ToString() => $"{Status} shift={Shift} score={Score:0.000}";
+        public override string ToString() => $"{Status} shift={Shift} score={Score:0.000}{(Estimated ? " (estimated)" : "")}";
     }
 
     /// <summary>
@@ -84,6 +90,8 @@ namespace HUScroll.Core.Stitching
     {
         private const ulong FnvOffset = 14695981039346656037UL;
         private const ulong FnvPrime = 1099511628211UL;
+        /// <summary>Animated pixels are compared as this neutral value</summary>
+        private const int AnimatedValue = 0x00777777;
 
         private readonly StitchOptions _options;
         private readonly List<int[]> _blocks = new List<int[]>();
@@ -93,6 +101,7 @@ namespace HUScroll.Core.Stitching
         private int _footer;
         private int _blockRows;
         private int _lastShift;
+        private int _consecutiveEstimates;
 
         private readonly int _quantize;
 
@@ -137,9 +146,17 @@ namespace HUScroll.Core.Stitching
         }
 
         /// <summary>
+        /// Number of appended frames whose shift was estimated
+        /// </summary>
+        public int EstimatedCount { get; private set; }
+
+        /// <summary>
         /// Add the next frame (same size as the first one)
         /// </summary>
-        public StitchResult Add(FrameData frame)
+        /// <param name="frame">The frame</param>
+        /// <param name="expectedShift">The expected scroll distance in rows (0 = unknown). When there is no clear match,
+        /// the best shift up to a bit more than this is taken (estimated), so a capture doesn't stop at changing content.</param>
+        public StitchResult Add(FrameData frame, int expectedShift = 0)
         {
             if (frame == null) throw new ArgumentNullException(nameof(frame));
 
@@ -289,9 +306,16 @@ namespace HUScroll.Core.Stitching
                 return new StitchResult(StitchStatus.ScrolledBack, -backShift, backScore);
             }
 
+            bool estimated = false;
             if (!IsAccepted(scores, bestShift, bestScore))
             {
-                return new StitchResult(StitchStatus.NoMatch, bestShift, bestScore);
+                if (!TryEstimate(scores, expectedShift, maxShift, out bestShift, out bestScore))
+                {
+                    _consecutiveEstimates = 0;
+                    return new StitchResult(StitchStatus.NoMatch, bestShift, bestScore);
+                }
+
+                estimated = true;
             }
 
             // 5. Commit
@@ -307,9 +331,18 @@ namespace HUScroll.Core.Stitching
             _previous = frame;
             _lastShift = bestShift;
             FrameCount++;
+            if (estimated)
+            {
+                EstimatedCount++;
+                _consecutiveEstimates++;
+            }
+            else
+            {
+                _consecutiveEstimates = 0;
+            }
 
             var status = ResultHeight >= _options.MaxOutputHeight ? StitchStatus.LimitReached : StitchStatus.Appended;
-            return new StitchResult(status, bestShift, bestScore);
+            return new StitchResult(status, bestShift, bestScore, estimated);
         }
 
         /// <summary>
@@ -368,6 +401,33 @@ namespace HUScroll.Core.Stitching
             }
 
             return bestScore - secondBest >= _options.MinPeakMargin;
+        }
+
+        /// <summary>
+        /// No clear match: take the best shift up to a bit more than the expected scroll distance, if it matches at least a little,
+        /// otherwise the expected distance itself. Never twice in a row (then something is really wrong).
+        /// </summary>
+        private bool TryEstimate(double[] scores, int expectedShift, int maxShift, out int shift, out double score)
+        {
+            shift = 0;
+            score = 0;
+            if (expectedShift <= 0 || _consecutiveEstimates >= _options.MaxConsecutiveEstimates) return false;
+
+            int upper = Math.Min(maxShift, (int)(expectedShift * 1.25) + 2);
+            for (int candidate = 1; candidate <= upper; candidate++)
+            {
+                if (scores[candidate] <= score) continue;
+                score = scores[candidate];
+                shift = candidate;
+            }
+
+            if (score >= _options.MinEstimateScore) return true;
+            if (expectedShift > maxShift) return false;
+
+            // Nothing matches at all (e.g. the whole overlap is a video): trust the scroll distance
+            shift = expectedShift;
+            score = scores[expectedShift];
+            return true;
         }
 
         private bool IsPreferredShift(int candidate, int current)
@@ -440,6 +500,7 @@ namespace HUScroll.Core.Stitching
         {
             var hashes = new ulong[rowCount];
             var pixels = frame.Pixels;
+            var animated = frame.Animated;
             int width = frame.Width;
             for (int r = 0; r < rowCount; r++)
             {
@@ -448,7 +509,9 @@ namespace HUScroll.Core.Stitching
                 for (int x = 0; x < width; x++)
                 {
                     if (!mask[x]) continue;
-                    hash ^= (uint)(pixels[rowStart + x] & quantize);
+                    int index = rowStart + x;
+                    int value = animated != null && animated[index] ? AnimatedValue : pixels[index];
+                    hash ^= (uint)(value & quantize);
                     hash *= FnvPrime;
                 }
 
@@ -462,6 +525,7 @@ namespace HUScroll.Core.Stitching
         {
             var result = new bool[rowCount];
             var pixels = frame.Pixels;
+            var animated = frame.Animated;
             int width = frame.Width;
             for (int r = 0; r < rowCount; r++)
             {
@@ -472,7 +536,8 @@ namespace HUScroll.Core.Stitching
                 for (int x = 0; x < width && transitions < minTransitions; x++)
                 {
                     if (!mask[x]) continue;
-                    int p = pixels[rowStart + x] & quantize;
+                    int index = rowStart + x;
+                    int p = (animated != null && animated[index] ? AnimatedValue : pixels[index]) & quantize;
                     if (hasLast && p != last) transitions++;
                     last = p;
                     hasLast = true;

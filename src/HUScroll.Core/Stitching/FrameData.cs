@@ -45,6 +45,12 @@ namespace HUScroll.Core.Stitching
 
         public int[] Pixels { get; }
 
+        /// <summary>
+        /// Optional, per pixel: true where the content is animated (GIF, video, carousel), detected by grabbing the same
+        /// position several times. These pixels are ignored for the matching, the image itself keeps them.
+        /// </summary>
+        public bool[] Animated { get; set; }
+
         public int this[int x, int y] => Pixels[y * Width + x];
 
         /// <summary>
