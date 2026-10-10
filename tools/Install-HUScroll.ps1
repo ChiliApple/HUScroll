@@ -71,7 +71,7 @@ trap {
     }
     break
 }
-$script:UserRestart = $AllUsers -and -not $NoRestart -and -not $Uninstall
+$script:UserRestart = $AllUsers -and -not $NoRestart
 if ($AllUsers) {
     $NoRestart = $true
     try {
@@ -203,8 +203,51 @@ if (-not $Uninstall -and -not (Test-Path -LiteralPath $source -PathType Leaf)) {
 $wasRunning = $false
 if (-not $NoRestart) { $wasRunning = Stop-ThisGreenshot $exe }
 
+# -AllUsers: running Greenshot (signed-in users) is closed normally IN the user's session with "Greenshot.exe /exit"
+# (a service cannot do that itself), the plugin is replaced, then the same task starts Greenshot again.
+# Never forced: if Greenshot stays open (editor with unsaved image), it keeps running.
+$script:RestartTask = $null
+$script:RestartFlag = $null
+function Get-GreenshotProcesses { @(Get-Process -Name 'Greenshot' -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exe }) }
+if ($script:UserRestart -and (Get-GreenshotProcesses).Count) {
+    try {
+        $dir = Join-Path $env:ProgramData 'HUScroll'
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+        $script:RestartFlag = Join-Path $dir 'restart.flag'
+        Remove-Item -LiteralPath $script:RestartFlag -Force -ErrorAction SilentlyContinue
+        $restart = Join-Path $dir 'Restart-Greenshot.ps1'
+        $code = @'
+$exe = '__EXE__'
+$flag = '__FLAG__'
+$me = (Get-Process -Id $PID).SessionId
+function Get-Mine { @(Get-Process -Name 'Greenshot' -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exe -and $_.SessionId -eq $me }) }
+if (-not (Get-Mine).Count) { exit 0 }
+Start-Process -FilePath $exe -ArgumentList '/exit'
+# wait until the installer has replaced the plugin (max. 90 s)
+for ($i = 0; $i -lt 90 -and -not (Test-Path -LiteralPath $flag); $i++) { Start-Sleep -Seconds 1 }
+Start-Sleep -Seconds 1
+if ((Get-Mine).Count) { exit 2 }
+Start-Process -FilePath $exe
+exit 0
+'@
+        $code = $code.Replace('__EXE__', ($exe -replace "'", "''")).Replace('__FLAG__', ($script:RestartFlag -replace "'", "''"))
+        Set-Content -LiteralPath $restart -Value $code -Encoding UTF8
+        $script:RestartTask = 'HUScroll Greenshot restart'
+        $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$restart`""
+        # group Users by SID (every Windows language) = runs in the session of each signed-in user
+        $principal = New-ScheduledTaskPrincipal -GroupId 'S-1-5-32-545' -RunLevel Limited
+        Register-ScheduledTask -TaskName $script:RestartTask -Action $action -Principal $principal -Force | Out-Null
+        Start-ScheduledTask -TaskName $script:RestartTask
+        Write-Host 'Closing Greenshot in the user session (Greenshot.exe /exit) ...'
+        for ($i = 0; $i -lt 20 -and (Get-GreenshotProcesses).Count; $i++) { Start-Sleep -Seconds 1 }
+        Write-Host "Greenshot processes still running: $((Get-GreenshotProcesses).Count)"
+    } catch {
+        Write-Host "Closing Greenshot in the user session not possible: $($_.Exception.Message)"
+    }
+}
+
 try {
-    # -AllUsers: Greenshot is not closed - a loaded plugin file cannot be replaced, Intune retries later (1618)
+    # -AllUsers: Greenshot still open (not closed in the user session) - a loaded plugin file cannot be replaced, Intune retries later (1618)
     if ($AllUsers) {
         foreach ($folder in $toRemove) {
             $dll = Join-Path $folder $pluginFileName
@@ -235,46 +278,24 @@ try {
     }
 }
 finally {
+    # -AllUsers: let the task start Greenshot again, then remove it
+    if ($script:RestartTask) {
+        try {
+            Set-Content -LiteralPath $script:RestartFlag -Value 'done' -Encoding ASCII
+            for ($i = 0; $i -lt 30; $i++) {
+                Start-Sleep -Seconds 1
+                if ((Get-ScheduledTask -TaskName $script:RestartTask).State -ne 'Running') { break }
+            }
+            $info = Get-ScheduledTaskInfo -TaskName $script:RestartTask
+            Write-Host "Greenshot restart in the user session: result $($info.LastTaskResult) (0 = restarted, 2 = still open - plugin at next start)"
+            Unregister-ScheduledTask -TaskName $script:RestartTask -Confirm:$false
+            Remove-Item -LiteralPath $script:RestartFlag, (Join-Path (Split-Path $script:RestartFlag -Parent) 'Restart-Greenshot.ps1') -Force -ErrorAction SilentlyContinue
+        } catch { Write-Host "Restart task: $($_.Exception.Message)" }
+    }
     # Start Greenshot again even when something failed above
     if (-not $NoRestart -and ($wasRunning -or -not $Uninstall)) {
         Write-Host 'Starting Greenshot ...'
         Start-Process -FilePath $exe
-    }
-}
-
-# -AllUsers: Greenshot in the signed-in users' sessions restart (normal close, never forced)
-if ($script:UserRestart -and @(Get-Process -Name 'Greenshot' -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exe }).Count) {
-    try {
-        $dir = Join-Path $env:ProgramData 'HUScroll'
-        $restart = Join-Path $dir 'Restart-Greenshot.ps1'
-        $code = @'
-$exe = '__EXE__'
-$me = (Get-Process -Id $PID).SessionId
-$p = @(Get-Process -Name 'Greenshot' -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exe -and $_.SessionId -eq $me })
-if (-not $p.Count) { exit 0 }
-foreach ($x in $p) { [void]$x.CloseMainWindow() }
-foreach ($x in $p) { [void]$x.WaitForExit(10000) }
-if (@($p | Where-Object { -not $_.HasExited }).Count) { exit 2 }
-Start-Process -FilePath $exe
-exit 0
-'@
-        Set-Content -LiteralPath $restart -Value ($code -replace '__EXE__', ($exe -replace "'", "''")) -Encoding UTF8
-        $taskName = 'HUScroll Greenshot restart'
-        $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$restart`""
-        # all signed-in users (group Users, by SID - works on every Windows language)
-        $principal = New-ScheduledTaskPrincipal -GroupId 'S-1-5-32-545' -RunLevel Limited
-        Register-ScheduledTask -TaskName $taskName -Action $action -Principal $principal -Force | Out-Null
-        Start-ScheduledTask -TaskName $taskName
-        for ($i = 0; $i -lt 30; $i++) {
-            Start-Sleep -Seconds 1
-            if ((Get-ScheduledTask -TaskName $taskName).State -ne 'Running' -and $i -ge 2) { break }
-        }
-        $info = Get-ScheduledTaskInfo -TaskName $taskName
-        Write-Host "Greenshot restart in the user session: result $($info.LastTaskResult) (0 = restarted, 2 = still open, plugin at next start)"
-        Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
-        Remove-Item -LiteralPath $restart -Force -ErrorAction SilentlyContinue
-    } catch {
-        Write-Host "Greenshot restart not possible ($($_.Exception.Message)) - the plugin appears at the next Greenshot start"
     }
 }
 
