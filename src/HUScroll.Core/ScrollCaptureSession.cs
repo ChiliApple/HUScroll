@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
- * The HU logo (Assets/*) is NOT covered by this license, see Assets/LICENSE-LOGO.txt
+ * Name and HU logo: no trademark rights are granted (GPLv3 section 7 e), see Assets/LICENSE-LOGO.txt
  */
 
 using System;
@@ -179,13 +179,17 @@ namespace HUScroll.Core
                     : await ScrollLoopAsync(area, driver, engine);
                 _log($"Finished: {reason}, {engine.FrameCount} frames, {engine.Width}x{engine.ResultHeight}");
 
-                var composed = engine.Compose();
-                if (engine.EstimatedCount > 0)
+                // Straight into the bitmap, then drop the collected rows (no third copy of a tall image in memory)
+                var image = ScreenGrabber.ToBitmap(engine.Width, engine.ComposedHeight, engine.ComposedBlocks());
+                int frameCount = engine.FrameCount;
+                int estimatedCount = engine.EstimatedCount;
+                engine.Release();
+                if (estimatedCount > 0)
                 {
-                    reason += $" – {engine.EstimatedCount} Übergang/Übergänge geschätzt (bewegter Inhalt), bitte prüfen";
+                    reason += $" – {estimatedCount} Übergang/Übergänge geschätzt (bewegter Inhalt), bitte prüfen";
                 }
-                bool isNormalEnd = (reason == ReasonEnd || reason == ReasonUser) && engine.EstimatedCount == 0;
-                return new ScrollCaptureResult(ScreenGrabber.ToBitmap(composed), engine.FrameCount, reason, area, isNormalEnd);
+                bool isNormalEnd = (reason == ReasonEnd || reason == ReasonUser) && estimatedCount == 0;
+                return new ScrollCaptureResult(image, frameCount, reason, area, isNormalEnd);
             }
             finally
             {
@@ -299,7 +303,7 @@ namespace HUScroll.Core
                         if (noMovement > _options.NoMovementRetries)
                         {
                             return engine.FrameCount <= 1
-                                ? "Der Inhalt hat sich nicht bewegt (nicht scrollbar, oder Mauszeiger über einem anderen Element)"
+                                ? "Der Inhalt hat sich nicht bewegt (nicht scrollbar, Mauszeiger über einem anderen Element, oder das Programm läuft als Administrator)"
                                 : ReasonEnd;
                         }
                         break;

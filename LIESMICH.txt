@@ -5,12 +5,13 @@ Installation (Zielmaschine: der PC, auf dem Greenshot laeuft):
 
   1. ZIP entpacken
   2. PowerShell in diesem Ordner oeffnen
-     - Greenshot 1.3: normale PowerShell reicht
-     - Greenshot 1.4: PowerShell als Administrator (Plugin muss in den Programmordner)
+     - normale PowerShell reicht; als Administrator nur, wenn das Plugin in einen
+       Ordner unter C:\Program Files muss (Greenshot 1.4 installiert)
   3. powershell -ExecutionPolicy Bypass -File .\Install-HUScroll.ps1
 
 Das Script erkennt die Greenshot-Version, kopiert die passende DLL, entfernt die
-Download-Sperre und startet Greenshot neu.
+Download-Sperre und startet Greenshot neu. Ist im Greenshot-Editor noch ein Bild offen,
+fragt es vorher nach (ungespeicherte Bilder gingen sonst verloren).
 
 Benutzung:
   Rechtsklick aufs Greenshot-Tray-Symbol ->
@@ -27,5 +28,5 @@ Deinstallation:
 
 Lizenz:
   HUScroll steht unter der GNU General Public License v3 (Datei LICENSE).
-  Quellcode: https://github.com/ChiliApple/HUScroll
-  Das HU-Logo ist nicht Teil der GPLv3 (alle Rechte vorbehalten).
+  Quellcode: liegt jedem Release als HUScroll-src-<Version>.zip bei
+  Name und HU-Logo: keine Markenrechte (GPLv3 Abschnitt 7 e), siehe LICENSE-LOGO.txt

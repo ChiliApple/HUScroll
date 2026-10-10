@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
- * The HU logo (Assets/*) is NOT covered by this license, see Assets/LICENSE-LOGO.txt
+ * Name and HU logo: no trademark rights are granted (GPLv3 section 7 e), see Assets/LICENSE-LOGO.txt
  */
 
 using System;
@@ -352,30 +352,79 @@ namespace HUScroll.Core.Stitching
         public FrameData Compose()
         {
             if (_previous == null) return null;
+            int width = _previous.Width;
+            var pixels = new int[width * ComposedHeight];
+            int offset = 0;
+            foreach (var block in ComposedBlocks())
+            {
+                Array.Copy(block, 0, pixels, offset, block.Length);
+                offset += block.Length;
+            }
+
+            return new FrameData(width, ComposedHeight, pixels);
+        }
+
+        /// <summary>
+        /// Height of the composed result (see <see cref="ComposedBlocks"/>)
+        /// </summary>
+        public int ComposedHeight
+        {
+            get
+            {
+                if (_previous == null) return 0;
+                if (!_layoutKnown) return _previous.Height;
+                return Math.Min(_blockRows + _footer, Math.Max(_options.MaxOutputHeight, _previous.Height));
+            }
+        }
+
+        /// <summary>
+        /// The rows of the result in order (row major, <see cref="Width"/> pixels per row), without building one big array:
+        /// lets the caller write them straight into a bitmap (saves a full copy of a tall image).
+        /// The sum of the rows is <see cref="ComposedHeight"/>.
+        /// </summary>
+        public IEnumerable<int[]> ComposedBlocks()
+        {
+            if (_previous == null) yield break;
             if (!_layoutKnown)
             {
-                return new FrameData(_previous.Width, _previous.Height, (int[])_previous.Pixels.Clone());
+                yield return _previous.Pixels;
+                yield break;
             }
 
             int width = _previous.Width;
-            int rows = Math.Min(_blockRows + _footer, Math.Max(_options.MaxOutputHeight, _previous.Height));
-            var pixels = new int[width * rows];
-            int offset = 0;
+            int remaining = ComposedHeight;
             foreach (var block in _blocks)
             {
-                int length = Math.Min(block.Length, pixels.Length - offset);
-                if (length <= 0) break;
-                Array.Copy(block, 0, pixels, offset, length);
-                offset += length;
+                if (remaining <= 0) yield break;
+                int rows = block.Length / width;
+                if (rows <= remaining)
+                {
+                    yield return block;
+                }
+                else
+                {
+                    var part = new int[remaining * width];
+                    Array.Copy(block, part, part.Length);
+                    yield return part;
+                }
+                remaining -= rows;
             }
 
-            if (_footer > 0 && offset < pixels.Length)
+            if (_footer > 0 && remaining > 0)
             {
-                var footerPixels = _previous.CopyRows(_previous.Height - _footer, _footer);
-                Array.Copy(footerPixels, 0, pixels, offset, Math.Min(footerPixels.Length, pixels.Length - offset));
+                yield return _previous.CopyRows(_previous.Height - _footer, Math.Min(_footer, remaining));
             }
+        }
 
-            return new FrameData(width, rows, pixels);
+        /// <summary>
+        /// Drop the collected rows (after the result was written), so the memory is free before the editor opens
+        /// </summary>
+        public void Release()
+        {
+            _blocks.Clear();
+            _blockRows = 0;
+            _previous = null;
+            _layoutKnown = false;
         }
 
         private StitchResult Commit(FrameData frame, int header, int footer, int bottom, int shift, double score, bool estimated)

@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
- * The HU logo (Assets/*) is NOT covered by this license, see Assets/LICENSE-LOGO.txt
+ * Name and HU logo: no trademark rights are granted (GPLv3 section 7 e), see Assets/LICENSE-LOGO.txt
  */
 
 using System;
@@ -156,6 +156,18 @@ namespace HUScroll.Core.UI
             }
 
             return false;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                // PictureBox and Control don't dispose an assigned image / font
+                _logo.Image?.Dispose();
+                _logo.Image = null;
+                Font?.Dispose();
+            }
+            base.Dispose(disposing);
         }
 
         protected override void OnPaint(PaintEventArgs e)

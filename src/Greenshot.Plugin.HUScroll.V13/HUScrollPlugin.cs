@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
- * The HU logo (Assets/*) is NOT covered by this license, see Assets/LICENSE-LOGO.txt
+ * Name and HU logo: no trademark rights are granted (GPLv3 section 7 e), see Assets/LICENSE-LOGO.txt
  */
 
 using System;
@@ -84,6 +84,7 @@ namespace Greenshot.Plugin.HUScroll
             if (item == null) return;
             item.Click -= OnMenuClick;
             item.Owner?.Items.Remove(item);
+            item.Image?.Dispose();
             item.Dispose();
             item = null;
         }
@@ -123,10 +124,18 @@ namespace Greenshot.Plugin.HUScroll
                 surface.CaptureDetails = captureDetails;
                 surface.Modified = true;
 
-                var exportInformation = DestinationHelper.ExportCapture(true, EditorDesignation, surface, captureDetails);
+                var editor = DestinationHelper.GetDestination(EditorDesignation);
+                var exportInformation = editor != null && editor.IsActive
+                    ? DestinationHelper.ExportCapture(true, EditorDesignation, surface, captureDetails)
+                    : null;
                 if (exportInformation == null || !exportInformation.ExportMade)
                 {
-                    Log.Warn("The Greenshot editor did not open the scroll capture");
+                    // Don't lose the capture: clipboard instead
+                    Log.Warn("The Greenshot editor did not open the scroll capture, copying it to the clipboard");
+                    Clipboard.SetImage(result.Image);
+                    surface.Dispose();
+                    Notify("Der Greenshot-Editor ist nicht verfügbar – das Bild liegt in der Zwischenablage. " + summary);
+                    return;
                 }
 
                 if (!result.IsNormalEnd)

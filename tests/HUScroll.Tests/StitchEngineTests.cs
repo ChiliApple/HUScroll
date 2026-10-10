@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
- * The HU logo (Assets/*) is NOT covered by this license, see Assets/LICENSE-LOGO.txt
+ * Name and HU logo: no trademark rights are granted (GPLv3 section 7 e), see Assets/LICENSE-LOGO.txt
  */
 
 using System;
@@ -569,6 +569,24 @@ namespace HUScroll.Tests
             }
 
             Assert.Equal(pageRows, engine.Compose().Height);
+        }
+
+        [Fact]
+        public void ComposedBlocks_MatchCompose_AndRespectTheLimit()
+        {
+            const int pageRows = 5000, viewRows = 400;
+            var page = CreatePage(pageRows, 24);
+            var engine = new StitchEngine(new StitchOptions { MaxOutputHeight = 1100 });
+            engine.Add(Viewport(page, pageRows, 0, viewRows, 30, 20, false, 0));
+            int offset = 0;
+            while (engine.Add(Viewport(page, pageRows, offset += 250, viewRows, 30, 20, false, 0)).Status == StitchStatus.Appended) { }
+
+            var composed = engine.Compose();
+            Assert.Equal(engine.ComposedHeight, composed.Height);
+            Assert.Equal(1100, composed.Height);
+            int rows = 0;
+            foreach (var block in engine.ComposedBlocks()) rows += block.Length / Width;
+            Assert.Equal(engine.ComposedHeight, rows);
         }
     }
 }

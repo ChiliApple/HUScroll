@@ -1,5 +1,15 @@
 # Änderungen
 
+## 0.4.1 (Korrekturen aus dem Code-Review)
+- Installer: schließt nur die passende Greenshot-Instanz, zuerst normal; ist ein Editor-Bild offen, wird nachgefragt (`-Force` ohne Frage). Rechte werden vor dem Beenden geprüft, Greenshot wird auch nach einem Fehler wieder gestartet, Pfade exakt (`-LiteralPath`)
+- Speicher: Das Ergebnis wird direkt ins Bild geschrieben und die gesammelten Zeilen werden danach freigegeben (eine Kopie weniger bei langen Aufnahmen)
+- Greenshot-Editor nicht verfügbar: Bild kommt in die Zwischenablage statt verloren zu gehen
+- Bilder/Schriften von Menü und Statusfenster werden freigegeben
+- Hinweis auf Administrator-Programme, wenn sich nichts bewegt
+- Lizenz: Logo-Dateien unter GPLv3, keine Markenrechte an Name und Logo (GPLv3 §7 e); Quellcode-ZIP in jedem Release; LICENSE-LOGO.txt im ZIP
+- Build: Greenshot-Referenzen mit SHA-256 geprüft, Schreibrechte nur für den Release-Job
+- Tests: dünn besetzte Seiten, Komposition in Blöcken
+
 ## 0.4.0
 - Neuer Bildvergleich: Raster aus Zellen (32 px × 1 Zeile) statt ganzer Zeilen. Zellen mit bewegtem Inhalt in einem der beiden Bilder werden übersprungen – Video-Hintergründe (z. B. bing.com) und GIFs, die durch jede Zeile laufen, verhindern den Vergleich nicht mehr
 - Rückwärts-Suche (Zurückscrollen) nur noch, wenn Vorwärts nicht passt – halbiert die Rechenzeit

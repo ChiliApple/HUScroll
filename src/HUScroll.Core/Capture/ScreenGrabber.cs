@@ -15,10 +15,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
- * The HU logo (Assets/*) is NOT covered by this license, see Assets/LICENSE-LOGO.txt
+ * Name and HU logo: no trademark rights are granted (GPLv3 section 7 e), see Assets/LICENSE-LOGO.txt
  */
 
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
@@ -95,6 +96,36 @@ namespace HUScroll.Core.Capture
             {
                 bitmap.UnlockBits(data);
             }
+        }
+
+        /// <summary>
+        /// Write row blocks (e.g. <see cref="StitchEngine.ComposedBlocks"/>) straight into a new bitmap
+        /// </summary>
+        public static Bitmap ToBitmap(int width, int height, IEnumerable<int[]> blocks)
+        {
+            var bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+            var data = bitmap.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+            try
+            {
+                int row = 0;
+                foreach (var block in blocks)
+                {
+                    int rows = block.Length / width;
+                    for (int r = 0; r < rows && row < height; r++, row++)
+                    {
+                        Marshal.Copy(block, r * width, IntPtr.Add(data.Scan0, row * data.Stride), width);
+                    }
+                }
+            }
+            catch
+            {
+                bitmap.UnlockBits(data);
+                bitmap.Dispose();
+                throw;
+            }
+
+            bitmap.UnlockBits(data);
+            return bitmap;
         }
 
         public static Bitmap ToBitmap(FrameData frame)

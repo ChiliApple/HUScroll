@@ -7,8 +7,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Read-only by default, only the release job may write
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -54,12 +55,15 @@ jobs:
       - name: Package
         shell: pwsh
         run: |
+          $version = '${{ steps.version.outputs.version }}'
           $out = 'dist/HUScroll'
           New-Item -ItemType Directory -Force -Path "$out/Greenshot-1.3", "$out/Greenshot-1.4" | Out-Null
           Copy-Item src/Greenshot.Plugin.HUScroll.V13/bin/Release/net472/Greenshot.Plugin.HUScroll.dll "$out/Greenshot-1.3/"
           Copy-Item src/Greenshot.Plugin.HUScroll.V14/bin/Release/net48/Greenshot.Plugin.HUScroll.dll "$out/Greenshot-1.4/"
-          Copy-Item tools/Install-HUScroll.ps1, LIESMICH.txt, LICENSE $out
-          Compress-Archive -Path "$out/*" -DestinationPath "dist/HUScroll-${{ steps.version.outputs.version }}.zip" -Force
+          Copy-Item tools/Install-HUScroll.ps1, LIESMICH.txt, LICENSE, Assets/LICENSE-LOGO.txt $out
+          Compress-Archive -Path "$out/*" -DestinationPath "dist/HUScroll-$version.zip" -Force
+          # GPLv3: the complete corresponding source next to every binary release
+          git archive --format=zip --prefix=HUScroll/ -o "dist/HUScroll-src-$version.zip" HEAD
           Get-ChildItem dist -Recurse | Select-Object FullName, Length
 
       - uses: actions/upload-artifact@v4
@@ -67,9 +71,28 @@ jobs:
           name: HUScroll-${{ steps.version.outputs.version }}
           path: dist/HUScroll/
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-files
+          path: |
+            dist/HUScroll-*.zip
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-files
+          path: dist
+
       - name: Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create $env:GITHUB_REF_NAME "dist/HUScroll-${{ steps.version.outputs.version }}.zip" --title "HUScroll $env:GITHUB_REF_NAME" --generate-notes
+        run: gh release create "$GITHUB_REF_NAME" dist/*.zip --repo "$GITHUB_REPOSITORY" --title "HUScroll $GITHUB_REF_NAME" --generate-notes

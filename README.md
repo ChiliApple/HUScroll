@@ -33,7 +33,7 @@ Auswahl (beide Modi):
 - **Klick**: Fenster bzw. Seiteninhalt unter der Maus (bei Browsern wird der Seitenbereich erkannt, wenn er ein eigenes Fenster-Handle hat)
 - **Ziehen**: freier Bereich (Rahmen)
 - **Shift** gedrückt halten: ganzes Fenster statt Seiteninhalt
-- **Esc** oder **Fertig**: Aufnahme beenden, das Ergebnis bis dahin geht in den Editor
+- **Esc** oder **Fertig**: Aufnahme beenden, das Ergebnis bis dahin geht in den Editor (Esc direkt nach der Auswahl, bevor das erste Bild aufgenommen ist, bricht ab)
 
 Automatisch hört HUScroll von selbst auf, wenn sich der Inhalt nicht mehr bewegt (Seitenende); beide Modi stoppen bei 30 000 px Höhe oder 120 Bildern.
 Eine Info-Meldung gibt es nur bei Abbruch oder Problemen.
@@ -84,5 +84,6 @@ Bauanleitung und Projektaufbau für Entwickler: [docs/BUILD.md](docs/BUILD.md)
 HUScroll ist ein Plugin für Greenshot und nutzt dessen Programmbibliothek `Greenshot.Base.dll`. Greenshot steht unter der GPLv3 – deshalb steht auch HUScroll unter der **[GNU General Public License v3](LICENSE)** (oder einer späteren Version).
 
 - **Programmcode**: GPLv3 – Nutzung, Änderung und Weitergabe nach den Bedingungen der GPLv3
-- **HU-Logo** (`Assets/`): nicht Teil der GPLv3, alle Rechte vorbehalten (GPLv3 §7 e) – Details in [Assets/LICENSE-LOGO.txt](Assets/LICENSE-LOGO.txt). Forks müssen das Logo entfernen oder ersetzen.
+- **Name und HU-Logo** (`Assets/`): Die Dateien stehen ebenfalls unter der GPLv3, es werden aber keine Rechte an Name und Logo als Marke gewährt (GPLv3 §7 e). Forks brauchen einen eigenen Namen und ein eigenes Logo – Details in [Assets/LICENSE-LOGO.txt](Assets/LICENSE-LOGO.txt).
+- **Quellcode**: liegt jedem Release als `HUScroll-src-<Version>.zip` bei.
 - **Fremdkomponenten**: Greenshot (GPLv3) und log4net (Apache 2.0) werden nur zum Bauen heruntergeladen und sind **nicht** im Repository oder in den Releases enthalten; zur Laufzeit verwendet HUScroll die Dateien der installierten Greenshot-Version.

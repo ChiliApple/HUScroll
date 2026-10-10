@@ -1,12 +1,22 @@
-HU-Logo (logo.png, logo16.png, logo32.png, logo48.png, logo64.png, icon.ico)
-Copyright (c) 2026 ChiliApple. Alle Rechte vorbehalten. / All rights reserved.
+Name "HUScroll" und HU-Logo (logo.png, logo16.png, logo32.png, logo48.png, logo64.png, icon.ico)
+Copyright (c) 2026 ChiliApple
 
-Das Logo ist NICHT Teil der GPLv3-Lizenz von HUScroll. Es darf zusammen mit
-unveraenderten, offiziellen HUScroll-Versionen weitergegeben werden.
-Veraenderte Fassungen (Forks) muessen das Logo entfernen oder durch ein eigenes ersetzen
-(Dateien in Assets/ austauschen, der Programmcode benoetigt sie nicht zwingend).
+Urheberrecht: Die Logo-Dateien sind Teil von HUScroll und stehen wie der Programmcode
+unter der GNU General Public License v3 (siehe LICENSE).
 
-The logo is NOT covered by the GPLv3 license of HUScroll. It may be distributed
-together with unmodified, official HUScroll releases. Modified versions (forks)
-must remove it or replace it with their own (replace the files in Assets/; the
-code works without them).
+Markenrecht: Nach GPLv3 Abschnitt 7 e) werden keine Rechte an Name und Logo als Marke
+gewaehrt. Veraenderte Fassungen (Forks) duerfen nicht unter dem Namen "HUScroll" oder
+mit dem HU-Logo als Kennzeichen auftreten, die nicht von ChiliApple stammen; sie muessen
+einen eigenen Namen und ein eigenes Logo verwenden.
+
+---
+
+Name "HUScroll" and HU logo (logo.png, logo16.png, logo32.png, logo48.png, logo64.png, icon.ico)
+Copyright (c) 2026 ChiliApple
+
+Copyright: The logo files are part of HUScroll and, like the program code, licensed under
+the GNU General Public License v3 (see LICENSE).
+
+Trademarks: According to GPLv3 section 7 e), no rights are granted to use the name or the
+logo as a trademark. Modified versions (forks) must not be presented under the name
+"HUScroll" or with the HU logo as their mark; they have to use their own name and logo.
