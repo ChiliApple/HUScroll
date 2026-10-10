@@ -20,6 +20,7 @@
 
 using System;
 using System.Drawing;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using HUScroll.Core.Capture;
@@ -103,6 +104,32 @@ namespace HUScroll.Core
         /// </summary>
         /// <returns>The result, or null when the user cancelled the selection</returns>
         public async Task<ScrollCaptureResult> RunAsync(ScrollCaptureMode mode = ScrollCaptureMode.Automatic, IWin32Window owner = null)
+        {
+            // Only one capture at a time, across tray menu and recipe: a held hotkey repeats and starts the recipe twice
+            if (Interlocked.CompareExchange(ref _activeSession, 1, 0) != 0)
+            {
+                _log("A scroll capture is already running, ignoring the second start");
+                return null;
+            }
+
+            try
+            {
+                return await RunCoreAsync(mode, owner);
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _activeSession, 0);
+            }
+        }
+
+        /// <summary>
+        /// True while a scroll capture is running (any session)
+        /// </summary>
+        public static bool IsActive => Volatile.Read(ref _activeSession) != 0;
+
+        private static int _activeSession;
+
+        private async Task<ScrollCaptureResult> RunCoreAsync(ScrollCaptureMode mode, IWin32Window owner)
         {
             bool manual = mode == ScrollCaptureMode.Manual;
             await Task.Delay(_options.StartDelayMs);

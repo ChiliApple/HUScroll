@@ -65,6 +65,13 @@ namespace Greenshot.Plugin.HUScroll.Recipes
             var mode = string.Equals(modeText, "Manual", StringComparison.OrdinalIgnoreCase) ? ScrollCaptureMode.Manual : ScrollCaptureMode.Automatic;
             context.LogStep($"HUScroll: scroll capture ({mode})");
 
+            // A held hotkey repeats: Greenshot then starts the recipe a second time while the first capture is still running
+            if (ScrollCaptureSession.IsActive)
+            {
+                context.Abort("HUScroll: a scroll capture is already running");
+                return;
+            }
+
             // The selection overlay and the status windows are WinForms windows: run the whole session on the UI thread
             var session = new ScrollCaptureSession(log: message => Log.Info(message));
             var result = await context.Ui.InvokeAsync(() => session.RunAsync(mode), cancellationToken).ConfigureAwait(false);
@@ -83,7 +90,11 @@ namespace Greenshot.Plugin.HUScroll.Recipes
                     CaptureMode = CaptureMode.Region
                 }
             };
+            // Greenshot puts a full screen source in front of every hotkey recipe without a "Source" step (the type name is fixed),
+            // that capture is replaced here and has to be released
+            var previousPayload = context.Payload;
             context.Payload = new CapturePayload(capture);
+            previousPayload?.Dispose();
             context.Properties["HUScroll.Frames"] = result.Frames;
             context.Properties["HUScroll.StopReason"] = result.StopReason;
 
