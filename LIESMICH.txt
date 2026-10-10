@@ -29,6 +29,13 @@ Benutzung:
 Deinstallation:
   powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\Downloads\HUScroll\Install-HUScroll.ps1" -Uninstall
 
+Verteilen mit Intune (fuer alle Benutzer, laeuft als SYSTEM):
+  Installieren:   powershell.exe -NoProfile -ExecutionPolicy Bypass -File Install-HUScroll.ps1 -AllUsers
+  Deinstallieren: powershell.exe -NoProfile -ExecutionPolicy Bypass -File Install-HUScroll.ps1 -AllUsers -Uninstall
+  Erkennung:      Datei C:\Program Files\Greenshot\Plugins\Greenshot.Plugin.HUScroll\Greenshot.Plugin.HUScroll.dll
+  Keine Rueckfragen, Greenshot wird nicht beendet/gestartet. Exit 1618 = Plugin gerade in
+  Benutzung (Intune wiederholt), Protokoll: %ProgramData%\HUScroll\Install-HUScroll.log
+
 Lizenz:
   HUScroll steht unter der GNU General Public License v3 (Datei LICENSE).
   Quellcode: liegt jedem Release als HUScroll-src-<Version>.zip bei

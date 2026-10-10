@@ -48,8 +48,8 @@ Eine Info-Meldung gibt es nur bei Abbruch oder Problemen.
 
 ```powershell
 # Zielmaschine: der PC, auf dem Greenshot läuft
-Expand-Archive "$env:USERPROFILE\Downloads\HUScroll-0.5.1.zip" -DestinationPath "$env:USERPROFILE\Downloads\HUScroll-0.5.1" -Force
-powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\Downloads\HUScroll-0.5.1\Install-HUScroll.ps1"
+Expand-Archive "$env:USERPROFILE\Downloads\HUScroll-0.5.2.zip" -DestinationPath "$env:USERPROFILE\Downloads\HUScroll-0.5.2" -Force
+powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\Downloads\HUScroll-0.5.2\Install-HUScroll.ps1"
 ```
 
 Das Script erkennt die Greenshot-Version und installiert die passende DLL:
@@ -61,6 +61,21 @@ Das Script erkennt die Greenshot-Version und installiert die passende DLL:
 Eine bestimmte Greenshot-Installation (z. B. die portable 1.4 zum Testen): `Install-HUScroll.ps1 -GreenshotPath "C:\Pfad\Greenshot.exe"`
 
 Deinstallation: denselben Befehl mit `-Uninstall` am Ende ausführen.
+
+### Verteilen mit Intune (für alle Benutzer)
+
+Als Win32-App mit dem entpackten ZIP-Ordner als Inhalt:
+
+| | |
+|---|---|
+| Installieren | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File Install-HUScroll.ps1 -AllUsers` |
+| Deinstallieren | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File Install-HUScroll.ps1 -AllUsers -Uninstall` |
+| Ausführen als | System |
+| Erkennung | Datei `C:\Program Files\Greenshot\Plugins\Greenshot.Plugin.HUScroll\Greenshot.Plugin.HUScroll.dll` |
+| Abhängigkeit | Greenshot (für alle Benutzer installiert) |
+| Rückgabecode | `1618` = Wiederholen (Standard in Intune) |
+
+`-AllUsers` legt das Plugin immer in den Greenshot-Ordner (auch bei 1.3), entfernt Kopien in den Benutzerprofilen, fragt nie nach und beendet oder startet Greenshot nicht – das Plugin ist ab dem nächsten Greenshot-Start da. Läuft Greenshot mit einer älteren HUScroll-Version, ist die Datei gesperrt: Exit-Code 1618, Intune versucht es später erneut. Protokoll: `%ProgramData%\HUScroll\Install-HUScroll.log`.
 
 ## So funktioniert's
 

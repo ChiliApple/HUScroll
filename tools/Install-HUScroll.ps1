@@ -20,18 +20,63 @@
     Don't close / start Greenshot (the plugin is loaded at the next start)
 .PARAMETER Force
     Close Greenshot without asking, even when it doesn't close normally
+.PARAMETER AllUsers
+    Installation for all users of the PC, e.g. as Intune Win32 app (runs as SYSTEM, no user interaction):
+    - plugin always goes to <Greenshot folder>\Plugins\Greenshot.Plugin.HUScroll (Greenshot 1.3 and 1.4)
+    - Greenshot 1.3: copies in the users' %APPDATA%\Greenshot\Plugins are removed (never two copies)
+    - never asks, never closes or starts Greenshot (the plugin is loaded at the next Greenshot start)
+    - exit code 0 = OK, 1618 = plugin file in use (Greenshot running) - Intune retries later, 1 = error
+    - log: %ProgramData%\HUScroll\Install-HUScroll.log
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File .\Install-HUScroll.ps1
+.EXAMPLE
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Install-HUScroll.ps1 -AllUsers
+    (Intune: install command; uninstall command with -AllUsers -Uninstall;
+     detection: file C:\Program Files\Greenshot\Plugins\Greenshot.Plugin.HUScroll\Greenshot.Plugin.HUScroll.dll)
 #>
 [CmdletBinding()]
 param(
     [string]$GreenshotPath,
     [switch]$Uninstall,
     [switch]$NoRestart,
-    [switch]$Force
+    [switch]$Force,
+    [switch]$AllUsers
 )
 
 $ErrorActionPreference = 'Stop'
+$script:ExitCode = 1
+
+# 32-bit PowerShell on 64-bit Windows (e.g. started by a 32-bit installer service): restart as 64-bit,
+# otherwise %ProgramFiles% points to "Program Files (x86)" and Greenshot is not found
+if ([Environment]::Is64BitOperatingSystem -and -not [Environment]::Is64BitProcess) {
+    $ps64 = Join-Path $env:windir 'sysnative\WindowsPowerShell\v1.0\powershell.exe'
+    if (Test-Path -LiteralPath $ps64) {
+        $argList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"")
+        if ($GreenshotPath) { $argList += @('-GreenshotPath', "`"$GreenshotPath`"") }
+        foreach ($sw in 'Uninstall', 'NoRestart', 'Force', 'AllUsers') { if ((Get-Variable -Name $sw -ValueOnly)) { $argList += "-$sw" } }
+        $p = Start-Process -FilePath $ps64 -ArgumentList $argList -Wait -PassThru -NoNewWindow
+        exit $p.ExitCode
+    }
+}
+
+# -AllUsers (Intune, SYSTEM): no questions, no restart, log file, defined exit codes
+trap {
+    if ($AllUsers) {
+        Write-Host "ERROR: $($_.Exception.Message)"
+        try { Stop-Transcript | Out-Null } catch { }
+        exit $script:ExitCode
+    }
+    break
+}
+if ($AllUsers) {
+    $NoRestart = $true
+    try {
+        $logDir = Join-Path $env:ProgramData 'HUScroll'
+        New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+        Start-Transcript -LiteralPath (Join-Path $logDir 'Install-HUScroll.log') -Append | Out-Null
+    } catch { }
+    Write-Host "HUScroll $(if ($Uninstall) { 'uninstall' } else { 'install' }) for all users - account: $([Security.Principal.WindowsIdentity]::GetCurrent().Name)"
+}
 $pluginFolderName = 'Greenshot.Plugin.HUScroll'
 $pluginFileName = 'Greenshot.Plugin.HUScroll.dll'
 
@@ -109,12 +154,26 @@ $appDataTarget = Join-Path $env:APPDATA "Greenshot\Plugins\$pluginFolderName"
 $programTarget = Join-Path $greenshotDir "Plugins\$pluginFolderName"
 $pafTarget = Join-Path $pafDir "Plugins\$pluginFolderName"
 
+# -AllUsers: copies in the users' profiles (Greenshot 1.3 also loads from %APPDATA%\Greenshot)
+function Get-UserProfilePluginFolders {
+    $usersRoot = Split-Path -Parent $env:PUBLIC
+    if (-not $usersRoot -or -not (Test-Path -LiteralPath $usersRoot)) { return @() }
+    return @(Get-ChildItem -LiteralPath $usersRoot -Directory -Force -ErrorAction SilentlyContinue | ForEach-Object {
+        Join-Path $_.FullName "AppData\Roaming\Greenshot\Plugins\$pluginFolderName"
+    })
+}
+
 if ($version.Major -eq 1 -and $version.Minor -eq 3) {
     $variant = 'Greenshot-1.3'
     # 1.3 loads from %APPDATA%\Greenshot and from its own folder (both recursive), PortableApps only from App\Greenshot
     $target = if ($isPaf) { $pafTarget } else { $appDataTarget }
     # Copies this Greenshot would load as well (never two copies)
     $duplicates = if ($isPaf) { @() } else { @($programTarget) }
+    if ($AllUsers -and -not $isPaf) {
+        # 1.3 loads from its own folder as well (recursive) - one copy there serves all users
+        $target = $programTarget
+        $duplicates = @(Get-UserProfilePluginFolders)
+    }
 }
 elseif ($version.Major -eq 1 -and $version.Minor -ge 4) {
     $variant = 'Greenshot-1.4'
@@ -141,6 +200,19 @@ $wasRunning = $false
 if (-not $NoRestart) { $wasRunning = Stop-ThisGreenshot $exe }
 
 try {
+    # -AllUsers: Greenshot is not closed - a loaded plugin file cannot be replaced, Intune retries later (1618)
+    if ($AllUsers) {
+        foreach ($folder in $toRemove) {
+            $dll = Join-Path $folder $pluginFileName
+            if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) { continue }
+            try { $fs = [IO.File]::Open($dll, 'Open', 'ReadWrite', 'None'); $fs.Dispose() }
+            catch {
+                $script:ExitCode = 1618
+                throw "Plugin file in use (Greenshot is running): $dll - nothing changed, retry later"
+            }
+        }
+    }
+
     # Never leave two copies (Greenshot would load both)
     foreach ($folder in $toRemove) {
         Remove-Item -LiteralPath $folder -Recurse -Force
@@ -164,4 +236,9 @@ finally {
         Write-Host 'Starting Greenshot ...'
         Start-Process -FilePath $exe
     }
+}
+
+if ($AllUsers) {
+    try { Stop-Transcript | Out-Null } catch { }
+    exit 0
 }
