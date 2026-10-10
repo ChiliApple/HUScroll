@@ -15,6 +15,8 @@ Lange Webseiten und Fenster als ein Bild – automatisch gescrollt oder selbst g
 
 ---
 
+HUScroll ist ein Plugin für **[Greenshot](https://getgreenshot.org/)** – Quellcode und Releases von Greenshot: **[github.com/greenshot/greenshot](https://github.com/greenshot/greenshot)**. Greenshot muss installiert sein.
+
 | Greenshot | Plugin-Variante | Gebaut gegen | Status |
 |---|---|---|---|
 | 1.3.x | `Greenshot-1.3` (.NET Framework 4.7.2) | 1.3.323 | Hauptvariante |
@@ -82,7 +84,7 @@ Bauanleitung und Projektaufbau für Entwickler: [docs/BUILD.md](docs/BUILD.md)
 
 ## Lizenz
 
-HUScroll ist ein Plugin für Greenshot und nutzt dessen Programmbibliothek `Greenshot.Base.dll`. Greenshot steht unter der GPLv3 – deshalb steht auch HUScroll unter der **[GNU General Public License v3](LICENSE)** (oder einer späteren Version).
+HUScroll ist ein Plugin für [Greenshot](https://github.com/greenshot/greenshot) und nutzt dessen Programmbibliothek `Greenshot.Base.dll`. Greenshot steht unter der [GPLv3](https://github.com/greenshot/greenshot/blob/main/LICENSE) – deshalb steht auch HUScroll unter der **[GNU General Public License v3](LICENSE)** (oder einer späteren Version).
 
 - **Programmcode**: GPLv3 – Nutzung, Änderung und Weitergabe nach den Bedingungen der GPLv3
 - **Name und HU-Logo** (`Assets/`): Die Dateien stehen ebenfalls unter der GPLv3, es werden aber keine Rechte an Name und Logo als Marke gewährt (GPLv3 §7 e). Forks brauchen einen eigenen Namen und ein eigenes Logo – Details in [Assets/LICENSE-LOGO.txt](Assets/LICENSE-LOGO.txt).
