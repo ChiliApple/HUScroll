@@ -24,3 +24,8 @@ Benutzung:
 
 Deinstallation:
   powershell -ExecutionPolicy Bypass -File .\Install-HUScroll.ps1 -Uninstall
+
+Lizenz:
+  HUScroll steht unter der GNU General Public License v3 (Datei LICENSE).
+  Quellcode: https://github.com/ChiliApple/HUScroll
+  Das HU-Logo ist nicht Teil der GPLv3 (alle Rechte vorbehalten).

@@ -8,9 +8,10 @@ Lange Webseiten und Fenster als ein Bild – automatisch gescrollt oder selbst g
   <img src="https://img.shields.io/badge/Greenshot-1.3%20%7C%201.4-6DB33F" alt="Greenshot 1.3 | 1.4">
   <img src="https://img.shields.io/badge/.NET%20Framework-4.7.2%20%7C%204.8-512BD4" alt=".NET Framework">
   <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6" alt="Windows 10 | 11">
+  <img src="https://img.shields.io/badge/Lizenz-GPLv3-orange" alt="Lizenz GPLv3">
 </p>
 
-<p align="center"><a href="#benutzung">Benutzung</a> · <a href="#installation">Installation</a> · <a href="CHANGELOG.md">Änderungen</a> · <a href="#geplant">Geplant</a></p>
+<p align="center"><a href="#benutzung">Benutzung</a> · <a href="#installation">Installation</a> · <a href="CHANGELOG.md">Änderungen</a> · <a href="#geplant">Geplant</a> · <a href="#lizenz">Lizenz</a></p>
 
 ---
 
@@ -49,7 +50,10 @@ powershell -ExecutionPolicy Bypass -File .\Install-HUScroll.ps1
 Das Script erkennt die Greenshot-Version und installiert die passende DLL:
 
 - **1.3**: nach `%APPDATA%\Greenshot\Plugins\Greenshot.Plugin.HUScroll\` (keine Adminrechte nötig)
-- **1.4**: nach `<Greenshot-Ordner>\Plugins\Greenshot.Plugin.HUScroll\` (Adminrechte nötig, 1.4 lädt Plugins nur aus dem Programmordner)
+- **1.4**: nach `<Greenshot-Ordner>\Plugins\Greenshot.Plugin.HUScroll\` – 1.4 lädt Plugins nur aus dem eigenen Ordner; Adminrechte nur nötig, wenn Greenshot unter `C:\Program Files` liegt
+- **PortableApps** (Ordner `App\Greenshot` neben der exe): nach `App\Greenshot\Plugins\…`
+
+Eine bestimmte Greenshot-Installation (z. B. die portable 1.4 zum Testen): `Install-HUScroll.ps1 -GreenshotPath "C:\Pfad\Greenshot.exe"`
 
 Deinstallation: `Install-HUScroll.ps1 -Uninstall`
 
@@ -94,3 +98,13 @@ src/Greenshot.Plugin.HUScroll.V14/  Anbindung Greenshot 1.4 (Tray-Menü, Editor)
 tests/HUScroll.Tests/               Tests der StitchEngine (laufen auch unter Linux)
 tools/                              Referenzen laden, Installation
 ```
+
+## Lizenz
+
+HUScroll ist ein Plugin für Greenshot und nutzt dessen Programmbibliothek `Greenshot.Base.dll`. Greenshot steht unter der GPLv3 – deshalb steht auch HUScroll unter der **[GNU General Public License v3](LICENSE)** (oder einer späteren Version).
+
+- **Programmcode**: GPLv3 – Nutzung, Änderung und Weitergabe nach den Bedingungen der GPLv3
+- **HU-Logo** (`Assets/`): nicht Teil der GPLv3, alle Rechte vorbehalten (GPLv3 §7 e) – Details in [Assets/LICENSE-LOGO.txt](Assets/LICENSE-LOGO.txt). Forks müssen das Logo entfernen oder ersetzen.
+- **Fremdkomponenten**: Greenshot (GPLv3) und log4net (Apache 2.0) werden nur zum Bauen heruntergeladen und sind **nicht** im Repository oder in den Releases enthalten; zur Laufzeit verwendet HUScroll die Dateien der installierten Greenshot-Version.
+
+> Hinweis: keine Rechtsberatung – Einschätzung nach den Lizenztexten und der GPL-FAQ der Free Software Foundation (Plugins, die im selben Prozess laufen und Daten austauschen, gelten als Teil des Programms).

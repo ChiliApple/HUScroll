@@ -1,5 +1,9 @@
 # Änderungen
 
+## 0.2.2
+- Lizenz: GPLv3 (wie Greenshot), HU-Logo davon ausgenommen (Assets/LICENSE-LOGO.txt), Lizenzkopf in allen Quelldateien, LICENSE im Release-ZIP
+- Installer: PortableApps-Erkennung korrigiert (Ordner App\Greenshot statt greenshot.ini), eine 1.4-Installation löscht nicht mehr das 1.3-Plugin in %APPDATA%
+
 ## 0.2.1
 - HU-Logo im Tray-Menü, im Auswahl-Overlay, im Statusfenster und als Datei-Symbol der DLL
 - README mit Logo und Badges, CHANGELOG, Entwurf Feature-Request Tastenkürzel

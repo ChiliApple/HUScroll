@@ -61,28 +61,29 @@ $greenshotDir = Split-Path -Parent $exe
 $versionInfo = (Get-Item $exe).VersionInfo
 # FileVersion can contain a suffix (1.4 continuous builds), the numeric parts are reliable
 $version = New-Object Version $versionInfo.FileMajorPart, $versionInfo.FileMinorPart, $versionInfo.FileBuildPart
-# Portable mode: greenshot.ini next to the exe, plugins are then only searched in <exe folder>\App\Greenshot
-$isPortable = Test-Path (Join-Path $greenshotDir 'greenshot.ini')
-Write-Host "Greenshot $version found: $exe$(if ($isPortable) { ' (portable)' })"
+# PortableApps mode: an App\Greenshot folder next to the exe, plugins are then only searched there
+# (the plain "PORTABLE" zip from GitHub has no App\Greenshot folder and behaves like an installation)
+$pafDir = Join-Path $greenshotDir 'App\Greenshot'
+$isPaf = Test-Path $pafDir -PathType Container
+Write-Host "Greenshot $version found: $exe$(if ($isPaf) { ' (PortableApps)' })"
 
 $appDataTarget = Join-Path $env:APPDATA "Greenshot\Plugins\$pluginFolderName"
-$programTarget = if ($isPortable) {
-    Join-Path $greenshotDir "App\Greenshot\Plugins\$pluginFolderName"
-} else {
-    Join-Path $greenshotDir "Plugins\$pluginFolderName"
-}
-if ($isPortable) { Write-Warning 'Portable Greenshot: installation path is untested' }
+$programTarget = Join-Path $greenshotDir "Plugins\$pluginFolderName"
+$pafTarget = Join-Path $pafDir "Plugins\$pluginFolderName"
 
 if ($version.Major -eq 1 -and $version.Minor -eq 3) {
     $variant = 'Greenshot-1.3'
-    # Installed 1.3 also loads plugins from %APPDATA%\Greenshot (no admin needed), portable only from App\Greenshot
-    $target = if ($isPortable) { $programTarget } else { $appDataTarget }
-    $other = if ($isPortable) { $appDataTarget } else { $programTarget }
+    # 1.3 loads from %APPDATA%\Greenshot and from its own folder (both recursive), PortableApps only from App\Greenshot
+    $target = if ($isPaf) { $pafTarget } else { $appDataTarget }
+    # Copies this Greenshot would load as well (never two copies)
+    $duplicates = if ($isPaf) { @() } else { @($programTarget) }
 }
 elseif ($version.Major -eq 1 -and $version.Minor -ge 4) {
     $variant = 'Greenshot-1.4'
-    $target = $programTarget
-    $other = $appDataTarget
+    # 1.4 only loads from its own folder (or App\Greenshot for PortableApps), %APPDATA% is not searched -
+    # an installation for Greenshot 1.3 there is left alone
+    $target = if ($isPaf) { $pafTarget } else { $programTarget }
+    $duplicates = @()
 }
 else {
     throw "Greenshot $version is not supported (1.3.x or 1.4.x)"
@@ -102,7 +103,7 @@ if ($wasRunning -and -not $NoRestart) {
 }
 
 # Never leave two copies (Greenshot would load both)
-foreach ($folder in @($target, $other)) {
+foreach ($folder in @($target) + $duplicates) {
     if (Test-Path $folder) {
         Remove-Item $folder -Recurse -Force
         Write-Host "Removed $folder"

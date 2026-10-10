@@ -58,7 +58,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$out/Greenshot-1.3", "$out/Greenshot-1.4" | Out-Null
           Copy-Item src/Greenshot.Plugin.HUScroll.V13/bin/Release/net472/Greenshot.Plugin.HUScroll.dll "$out/Greenshot-1.3/"
           Copy-Item src/Greenshot.Plugin.HUScroll.V14/bin/Release/net48/Greenshot.Plugin.HUScroll.dll "$out/Greenshot-1.4/"
-          Copy-Item tools/Install-HUScroll.ps1, LIESMICH.txt $out
+          Copy-Item tools/Install-HUScroll.ps1, LIESMICH.txt, LICENSE $out
           Compress-Archive -Path "$out/*" -DestinationPath "dist/HUScroll-${{ steps.version.outputs.version }}.zip" -Force
           Get-ChildItem dist -Recurse | Select-Object FullName, Length
 

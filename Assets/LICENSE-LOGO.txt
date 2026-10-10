@@ -1,0 +1,12 @@
+HU-Logo (logo.png, logo16.png, logo32.png, logo48.png, logo64.png, icon.ico)
+Copyright (c) 2026 ChiliApple. Alle Rechte vorbehalten. / All rights reserved.
+
+Das Logo ist NICHT Teil der GPLv3-Lizenz von HUScroll. Es darf zusammen mit
+unveraenderten, offiziellen HUScroll-Versionen weitergegeben werden.
+Veraenderte Fassungen (Forks) muessen das Logo entfernen oder durch ein eigenes ersetzen
+(Dateien in Assets/ austauschen, der Programmcode benoetigt sie nicht zwingend).
+
+The logo is NOT covered by the GPLv3 license of HUScroll. It may be distributed
+together with unmodified, official HUScroll releases. Modified versions (forks)
+must remove it or replace it with their own (replace the files in Assets/; the
+code works without them).
