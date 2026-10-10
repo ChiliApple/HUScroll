@@ -48,8 +48,8 @@ Eine Info-Meldung gibt es nur bei Abbruch oder Problemen.
 
 ```powershell
 # Zielmaschine: der PC, auf dem Greenshot läuft
-Expand-Archive "$env:USERPROFILE\Downloads\HUScroll-0.4.1.zip" -DestinationPath "$env:USERPROFILE\Downloads\HUScroll-0.4.1" -Force
-powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\Downloads\HUScroll-0.4.1\Install-HUScroll.ps1"
+Expand-Archive "$env:USERPROFILE\Downloads\HUScroll-0.5.0.zip" -DestinationPath "$env:USERPROFILE\Downloads\HUScroll-0.5.0" -Force
+powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\Downloads\HUScroll-0.5.0\Install-HUScroll.ps1"
 ```
 
 Das Script erkennt die Greenshot-Version und installiert die passende DLL:
