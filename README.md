@@ -1,6 +1,6 @@
 <h1 align="center"><img src="Assets/logo64.png" width="44" alt="" align="absmiddle"/> HUScroll</h1>
 
-<p align="center"><b>Scroll-Capture für Greenshot</b><br/>
+<p align="center"><b>Scroll-Capture Plugin für Greenshot</b><br/>
 Lange Webseiten und Fenster als ein Bild – automatisch gescrollt oder selbst gescrollt, zusammengesetzt und im Greenshot-Editor zum Zuschneiden.</p>
 
 <p align="center">

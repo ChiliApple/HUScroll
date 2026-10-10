@@ -1,5 +1,5 @@
-HUScroll - Scroll-Capture fuer Greenshot
-========================================
+HUScroll - Scroll-Capture Plugin fuer Greenshot
+===============================================
 
 Installation (Zielmaschine: der PC, auf dem Greenshot laeuft):
 
