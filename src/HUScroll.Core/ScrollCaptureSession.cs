@@ -276,7 +276,9 @@ namespace HUScroll.Core
                 var frame = await GrabSettledAsync(area);
                 if (frame == null) return ReasonUser;
 
-                int expectedShift = _maxPixelsPerNotch > 0 ? (int)(_maxPixelsPerNotch * notches) : 0;
+                // Before the first measurement: browsers scroll about 100 px (at 100 %) per notch - only used when nothing can be matched
+                double pixelsPerNotch = _maxPixelsPerNotch > 0 ? _maxPixelsPerNotch : GuessPixelsPerNotch();
+                int expectedShift = (int)(pixelsPerNotch * notches);
                 var result = engine.Add(frame, expectedShift);
                 _log($"Frame {i}: {result} (notches={notches}, expected={expectedShift}{(frame.Animated != null ? ", animation masked" : "")})");
                 switch (result.Status)
@@ -307,6 +309,21 @@ namespace HUScroll.Core
             }
 
             return $"Maximale Anzahl Bilder erreicht ({_options.MaxFrames})";
+        }
+
+        private static double GuessPixelsPerNotch()
+        {
+            try
+            {
+                using (var g = Graphics.FromHwnd(IntPtr.Zero))
+                {
+                    return 100.0 * g.DpiY / 96.0;
+                }
+            }
+            catch (Exception)
+            {
+                return 100.0;
+            }
         }
 
         /// <summary>

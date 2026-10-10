@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.3.1
+- Seiten voller GIFs (z. B. giphy.com): Scrollen und Animation werden jetzt über senkrechte Streifen unterschieden (vorher: Abbruch nach dem ersten Bild)
+- Kaum noch ruhiger Inhalt zum Vergleichen: Übergang wird aus der Scrollweite geschätzt statt fälschlich „Ende erreicht“
+- Erster Schritt: geschätzte Scrollweite (ca. 100 px je Raste, DPI-abhängig), falls noch nichts gemessen ist
+
 ## 0.3.0
 - Bewegte Inhalte (GIF, Video, Karussell): werden beim Warten auf ein ruhiges Bild erkannt und beim Vergleich ausgeblendet, im Ergebnis bleiben sie erhalten
 - Automatik: kein Abbruch mehr bei unklarem Übergang – der Übergang wird aus der Scrollweite geschätzt (höchstens einmal hintereinander) und am Ende gemeldet

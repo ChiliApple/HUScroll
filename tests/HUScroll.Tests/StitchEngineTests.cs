@@ -352,6 +352,78 @@ namespace HUScroll.Tests
             Assert.Null(detector.Mask);
         }
 
+        /// <summary>
+        /// A page full of GIFs (like giphy.com): tiles cover most of the rows and most of the width,
+        /// only the gaps between them and a title stay still
+        /// </summary>
+        private static FrameData GifGrid(int[] page, int pageRows, int offset, int viewRows, Random random)
+        {
+            var frame = Viewport(page, pageRows, offset, viewRows, 0, 0, false, 0);
+            for (int tileTop = 40; tileTop < pageRows; tileTop += 120)
+            {
+                for (int tileLeft = 8; tileLeft + 70 < Width; tileLeft += 78)
+                {
+                    // like on giphy, some tiles are still images (or didn't change during the grabs)
+                    if ((tileTop / 120 + tileLeft / 78) % 3 == 0) continue;
+                    for (int y = tileTop; y < tileTop + 110; y++)
+                    {
+                        int fy = y - offset;
+                        if (fy < 0 || fy >= viewRows) continue;
+                        for (int x = tileLeft; x < tileLeft + 70; x++)
+                            frame.Pixels[fy * Width + x] = unchecked((int)0xFF000000) | random.Next(0, 0xFFFFFF);
+                    }
+                }
+            }
+            return frame;
+        }
+
+        [Fact]
+        public void PageFullOfGifs_AnimationIsNotMistakenForScrolling()
+        {
+            const int pageRows = 1600, viewRows = 500;
+            var page = CreatePage(pageRows, 16);
+            var random = new Random(17);
+            var detector = new AnimationDetector(Width, viewRows);
+
+            // same position, every GIF shows another picture: animation
+            Assert.True(detector.Observe(GifGrid(page, pageRows, 200, viewRows, random), GifGrid(page, pageRows, 200, viewRows, random)));
+            Assert.NotNull(detector.GetUsableMask());
+
+            // scrolled by 60 rows, GIFs animated as well: scrolling
+            detector.Reset();
+            Assert.False(detector.Observe(GifGrid(page, pageRows, 200, viewRows, random), GifGrid(page, pageRows, 260, viewRows, random)));
+        }
+
+        [Fact]
+        public void PageFullOfGifs_StitchesWithMask()
+        {
+            const int pageRows = 2400, viewRows = 600;
+            var page = CreatePage(pageRows, 18);
+            var random = new Random(19);
+            var engine = new StitchEngine();
+
+            FrameData Grab(int offset)
+            {
+                var detector = new AnimationDetector(Width, viewRows);
+                var first = GifGrid(page, pageRows, offset, viewRows, random);
+                var second = GifGrid(page, pageRows, offset, viewRows, random);
+                Assert.True(detector.Observe(first, second));
+                second.Animated = detector.GetUsableMask();
+                return second;
+            }
+
+            engine.Add(Grab(0));
+            int offset = 0;
+            while (offset < pageRows - viewRows)
+            {
+                int next = Math.Min(offset + 300, pageRows - viewRows);
+                var result = engine.Add(Grab(next));
+                Assert.Equal(StitchStatus.Appended, result.Status);
+                Assert.Equal(next - offset, result.Shift);
+                offset = next;
+            }
+        }
+
         [Fact]
         public void HugeChange_IsEstimatedFromTheExpectedShift()
         {

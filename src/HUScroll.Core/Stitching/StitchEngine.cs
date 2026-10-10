@@ -195,7 +195,9 @@ namespace HUScroll.Core.Stitching
             // Content at the same position (only something small changed, e.g. an animation): nothing scrolled
             var informativeFull = InformativeRows(_previous, baseMask, 0, height, _options.InformativeRowMinTransitions, _quantize);
             Score(previousFull, currentFull, informativeFull, 0, out double unchangedScore, out _);
-            if (unchangedScore >= _options.MinMatchScore)
+            // Almost everything animated (masked): plain rows match everywhere, "unchanged" would be a wrong conclusion
+            bool enoughContent = CountTrue(informativeFull) >= MinInformativeRows(height);
+            if (enoughContent && unchangedScore >= _options.MinMatchScore)
             {
                 return new StitchResult(StitchStatus.NoMovement, 0, unchangedScore);
             }
@@ -256,6 +258,19 @@ namespace HUScroll.Core.Stitching
             var currentHashes = RowHashes(frame, mask, top, scrollRows, _quantize);
             var informative = InformativeRows(_previous, mask, top, scrollRows, _options.InformativeRowMinTransitions, _quantize);
 
+            // Not enough still content to compare (e.g. a page full of GIFs): only an estimate from the scroll distance is possible
+            if (CountTrue(informative) < MinInformativeRows(scrollRows))
+            {
+                var noScores = new double[maxShift + 1];
+                if (!TryEstimate(noScores, expectedShift, maxShift, out int blindShift, out _))
+                {
+                    _consecutiveEstimates = 0;
+                    return new StitchResult(StitchStatus.NoMatch, 0, 0);
+                }
+
+                return Commit(frame, header, footer, bottom, blindShift, 0, true);
+            }
+
             // 4. Find the shift with the best match
             Score(previousHashes, currentHashes, informative, 0, out double zeroScore, out _);
             int bestShift = 0;
@@ -309,16 +324,22 @@ namespace HUScroll.Core.Stitching
             bool estimated = false;
             if (!IsAccepted(scores, bestShift, bestScore))
             {
-                if (!TryEstimate(scores, expectedShift, maxShift, out bestShift, out bestScore))
+                if (!TryEstimate(scores, expectedShift, maxShift, out int estimatedShift, out double estimatedScore))
                 {
                     _consecutiveEstimates = 0;
                     return new StitchResult(StitchStatus.NoMatch, bestShift, bestScore);
                 }
 
+                bestShift = estimatedShift;
+                bestScore = estimatedScore;
                 estimated = true;
             }
 
-            // 5. Commit
+            return Commit(frame, header, footer, bottom, bestShift, bestScore, estimated);
+        }
+
+        private StitchResult Commit(FrameData frame, int header, int footer, int bottom, int bestShift, double bestScore, bool estimated)
+        {
             if (!_layoutKnown)
             {
                 _header = header;
@@ -429,6 +450,18 @@ namespace HUScroll.Core.Stitching
             score = scores[expectedShift];
             return true;
         }
+
+        private static int CountTrue(bool[] values)
+        {
+            int count = 0;
+            foreach (bool value in values)
+            {
+                if (value) count++;
+            }
+            return count;
+        }
+
+        private static int MinInformativeRows(int rows) => Math.Max(6, rows / 50);
 
         private bool IsPreferredShift(int candidate, int current)
         {
