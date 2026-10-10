@@ -1,7 +1,18 @@
-# HUScroll
+<h1 align="center"><img src="Assets/logo64.png" width="44" alt="" align="absmiddle"/> HUScroll</h1>
 
-Scroll-Capture-Plugin für [Greenshot](https://getgreenshot.org/), nach dem Vorbild der Samsung-Funktion „Scroll-Aufnahme“:
-Fenster wählen, HUScroll scrollt selbst, setzt die Bilder zu einem langen Screenshot zusammen und öffnet ihn im Greenshot-Editor, wo du ihn zuschneidest.
+<p align="center"><b>Scroll-Capture für Greenshot</b><br/>
+Lange Webseiten und Fenster als ein Bild – automatisch gescrollt oder selbst gescrollt, zusammengesetzt und im Greenshot-Editor zum Zuschneiden.</p>
+
+<p align="center">
+  <a href="https://github.com/ChiliApple/HUScroll/releases/latest"><img src="https://img.shields.io/github/v/release/ChiliApple/HUScroll?label=Version&color=b9a88a" alt="Version"></a>
+  <img src="https://img.shields.io/badge/Greenshot-1.3%20%7C%201.4-6DB33F" alt="Greenshot 1.3 | 1.4">
+  <img src="https://img.shields.io/badge/.NET%20Framework-4.7.2%20%7C%204.8-512BD4" alt=".NET Framework">
+  <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6" alt="Windows 10 | 11">
+</p>
+
+<p align="center"><a href="#benutzung">Benutzung</a> · <a href="#installation">Installation</a> · <a href="CHANGELOG.md">Änderungen</a> · <a href="#geplant">Geplant</a></p>
+
+---
 
 | Greenshot | Plugin-Variante | Gebaut gegen | Status |
 |---|---|---|---|
@@ -59,6 +70,10 @@ Deinstallation: `Install-HUScroll.ps1 -Uninstall`
 - Seiten mit eigenem Scroll-Container: die Maus muss beim Start über dem scrollenden Bereich sein (Mitte des gewählten Bereichs).
 - Programme, die als Administrator laufen, nehmen von Greenshot (ohne Adminrechte) keine Mausrad-Eingaben an.
 - Fixe Elemente mitten im Inhalt (z. B. schwebende Buttons) erscheinen mehrfach – im Editor wegschneiden.
+
+## Geplant
+
+- **Tastenkürzel** für beide Modi: wird beim Greenshot-Projekt angefragt (Plugin-Hotkeys in den Greenshot-Einstellungen), Entwurf: [docs/feature-request-hotkeys.md](docs/feature-request-hotkeys.md). Bis dahin über das Tray-Menü.
 
 ## Bauen
 

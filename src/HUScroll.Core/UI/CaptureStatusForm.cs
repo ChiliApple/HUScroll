@@ -13,6 +13,7 @@ namespace HUScroll.Core.UI
     {
         private readonly Label _status;
         private readonly Button _done;
+        private readonly PictureBox _logo;
 
         public CaptureStatusForm()
         {
@@ -32,7 +33,8 @@ namespace HUScroll.Core.UI
                 AutoSize = false,
                 Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
-                Text = "● HUScroll startet …"
+                Text = "● HUScroll startet …",
+                Padding = new Padding(6, 0, 0, 0)
             };
 
             _done = new Button
@@ -49,7 +51,17 @@ namespace HUScroll.Core.UI
             _done.FlatAppearance.BorderSize = 0;
             _done.Click += (s, e) => StopRequested = true;
 
+            _logo = new PictureBox
+            {
+                Dock = DockStyle.Left,
+                Width = 34,
+                SizeMode = PictureBoxSizeMode.Zoom,
+                Image = HUScrollIcon.Create(64)
+            };
+
+            // Fill first, then the docked sides (WinForms docks in reverse order of the collection)
             Controls.Add(_status);
+            Controls.Add(_logo);
             Controls.Add(_done);
         }
 
@@ -68,6 +80,7 @@ namespace HUScroll.Core.UI
             ClientSize = new Size((int)(380 * factor), (int)(44 * factor));
             Padding = new Padding((int)(10 * factor), (int)(8 * factor), (int)(8 * factor), (int)(8 * factor));
             _done.Width = (int)(100 * factor);
+            _logo.Width = (int)(34 * factor);
         }
 
         /// <summary>True after the user clicked "Fertig"</summary>

@@ -26,6 +26,7 @@ namespace HUScroll.Core.UI
         private readonly Font _titleFont = new Font("Segoe UI", 12f, FontStyle.Bold);
         private readonly Rectangle _hintMonitor;
         private readonly bool _manual;
+        private readonly Bitmap _logo = HUScrollIcon.Create(64);
 
         private Rectangle _selection = Rectangle.Empty; // screen coordinates
         private WindowHit _hover;
@@ -201,6 +202,7 @@ namespace HUScroll.Core.UI
                 _labelFont.Dispose();
                 _hintFont.Dispose();
                 _titleFont.Dispose();
+                _logo.Dispose();
             }
             base.Dispose(disposing);
         }
@@ -228,8 +230,11 @@ namespace HUScroll.Core.UI
             const string hint = "Klick: Fenster / Seiteninhalt   ·   Ziehen: Bereich   ·   Shift: ganzes Fenster   ·   Esc: Abbrechen";
             var titleSize = g.MeasureString(title, _titleFont);
             var hintSize = g.MeasureString(hint, _hintFont);
-            float width = Math.Max(titleSize.Width, hintSize.Width) + 32;
-            float height = titleSize.Height + hintSize.Height + 20;
+            float textHeight = titleSize.Height + hintSize.Height + 2;
+            float logoSize = textHeight;
+            float padding = 12;
+            float width = logoSize + padding * 3 + Math.Max(titleSize.Width, hintSize.Width);
+            float height = textHeight + padding * 2 - 4;
             var monitor = ToClient(_hintMonitor);
             var box = new RectangleF(monitor.Left + (monitor.Width - width) / 2, monitor.Top + 24, width, height);
 
@@ -247,11 +252,18 @@ namespace HUScroll.Core.UI
                 g.DrawPath(pen, path);
             }
 
+            var oldInterpolation = g.InterpolationMode;
+            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            g.DrawImage(_logo, box.X + padding, box.Y + (box.Height - logoSize) / 2, logoSize, logoSize);
+            g.InterpolationMode = oldInterpolation;
+
+            float textX = box.X + padding * 2 + logoSize;
+            float textY = box.Y + (box.Height - textHeight) / 2;
             using (var accentBrush = new SolidBrush(Accent))
             using (var textBrush = new SolidBrush(Color.FromArgb(235, 235, 235)))
             {
-                g.DrawString(title, _titleFont, accentBrush, box.X + (box.Width - titleSize.Width) / 2, box.Y + 8);
-                g.DrawString(hint, _hintFont, textBrush, box.X + (box.Width - hintSize.Width) / 2, box.Y + 10 + titleSize.Height);
+                g.DrawString(title, _titleFont, accentBrush, textX, textY);
+                g.DrawString(hint, _hintFont, textBrush, textX, textY + titleSize.Height + 2);
             }
         }
 

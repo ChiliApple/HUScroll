@@ -6,11 +6,16 @@
   -->
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework>
+    <ApplicationIcon>$(MSBuildThisFileDirectory)..\..\Assets\icon.ico</ApplicationIcon>
     <RootNamespace>HUScroll.Core</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- HU logo, read by HUScrollIcon as "HUScroll.logoNN.png" -->
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)..\..\Assets\logo16.png;$(MSBuildThisFileDirectory)..\..\Assets\logo32.png;$(MSBuildThisFileDirectory)..\..\Assets\logo48.png;$(MSBuildThisFileDirectory)..\..\Assets\logo64.png" LogicalName="HUScroll.%(Filename)%(Extension)" Link="Assets\%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />

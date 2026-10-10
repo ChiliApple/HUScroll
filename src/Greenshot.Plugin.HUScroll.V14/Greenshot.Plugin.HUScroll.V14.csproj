@@ -6,6 +6,7 @@
   <PropertyGroup>
     <TargetFramework>net48</TargetFramework>
     <AssemblyName>Greenshot.Plugin.HUScroll</AssemblyName>
+    <ApplicationIcon>$(MSBuildThisFileDirectory)..\..\Assets\icon.ico</ApplicationIcon>
     <RootNamespace>Greenshot.Plugin.HUScroll</RootNamespace>
     <AssemblyTitle>HUScroll for Greenshot 1.4</AssemblyTitle>
     <GreenshotDir>$(HUScrollLibDir)greenshot-1.4\</GreenshotDir>
@@ -32,6 +33,10 @@
       <HintPath>$(GreenshotDir)System.Threading.Tasks.Extensions.dll</HintPath>
       <Private>false</Private>
     </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <!-- HU logo, read by HUScrollIcon as "HUScroll.logoNN.png" -->
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)..\..\Assets\logo16.png;$(MSBuildThisFileDirectory)..\..\Assets\logo32.png;$(MSBuildThisFileDirectory)..\..\Assets\logo48.png;$(MSBuildThisFileDirectory)..\..\Assets\logo64.png" LogicalName="HUScroll.%(Filename)%(Extension)" Link="Assets\%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />

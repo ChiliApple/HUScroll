@@ -1,43 +1,66 @@
+using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.IO;
+using System.Linq;
 
 namespace HUScroll.Core.UI
 {
     /// <summary>
-    /// The menu icon, drawn in code (no resources needed): a page with a down arrow
+    /// The HU logo, embedded in the plugin assembly (Assets/logo16/32/48/64.png, logical name "HUScroll.logoNN.png")
     /// </summary>
     public static class HUScrollIcon
     {
+        private static readonly int[] Sizes = { 16, 32, 48, 64 };
+
+        /// <summary>
+        /// The logo in the requested size (the next bigger embedded size, scaled down with high quality)
+        /// </summary>
         public static Bitmap Create(int size = 16)
         {
-            var bitmap = new Bitmap(size, size);
-            float s = size / 16f;
-            using (var g = Graphics.FromImage(bitmap))
-            using (var page = new SolidBrush(Color.FromArgb(255, 255, 255)))
-            using (var border = new Pen(Color.FromArgb(70, 70, 70), 1f * s))
-            using (var lines = new Pen(Color.FromArgb(150, 150, 150), 1f * s))
-            using (var accent = new SolidBrush(Color.FromArgb(0, 150, 230)))
-            {
-                g.SmoothingMode = SmoothingMode.AntiAlias;
-                g.Clear(Color.Transparent);
-                g.FillRectangle(page, 2 * s, 0.5f * s, 8 * s, 14.5f * s);
-                g.DrawRectangle(border, 2 * s, 0.5f * s, 8 * s, 14.5f * s);
-                for (int i = 0; i < 5; i++)
-                {
-                    float y = (3 + i * 2.4f) * s;
-                    g.DrawLine(lines, 3.5f * s, y, 8.5f * s, y);
-                }
+            int source = Sizes.FirstOrDefault(s => s >= size);
+            if (source == 0) source = Sizes[Sizes.Length - 1];
 
-                // down arrow
-                g.FillRectangle(accent, 11.5f * s, 2 * s, 2.5f * s, 7 * s);
-                g.FillPolygon(accent, new[]
+            using (var original = Load(source))
+            {
+                if (original == null) return new Bitmap(size, size);
+                var result = new Bitmap(size, size);
+                using (var g = Graphics.FromImage(result))
                 {
-                    new PointF(9.5f * s, 8.5f * s),
-                    new PointF(16f * s, 8.5f * s),
-                    new PointF(12.75f * s, 14f * s)
-                });
+                    g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                    g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                    g.SmoothingMode = SmoothingMode.AntiAlias;
+                    g.Clear(Color.Transparent);
+                    g.DrawImage(original, new Rectangle(0, 0, size, size));
+                }
+                return result;
             }
-            return bitmap;
+        }
+
+        private static Bitmap Load(int size)
+        {
+            try
+            {
+                var assembly = typeof(HUScrollIcon).Assembly;
+                using (var stream = assembly.GetManifestResourceStream($"HUScroll.logo{size}.png"))
+                {
+                    if (stream == null) return null;
+                    using (var memory = new MemoryStream())
+                    {
+                        stream.CopyTo(memory);
+                        memory.Position = 0;
+                        // A copy, so the stream can be closed (GDI+ keeps the stream of a Bitmap open otherwise)
+                        using (var image = new Bitmap(memory))
+                        {
+                            return new Bitmap(image);
+                        }
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                return null;
+            }
         }
     }
 }
