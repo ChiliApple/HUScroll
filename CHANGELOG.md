@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.5.0
+- Greenshot 1.4: Rezept-Schritt „Scroll-Capture (HUScroll)“ (Parameter Mode = Automatic/Manual) – kombinierbar mit allen anderen Schritten
+- Greenshot 1.4: zwei mitgelieferte Rezepte mit Tastenkürzel – Strg+Alt+Druck (automatisch), Strg+Alt+Shift+Druck (manuell), Ergebnis im Editor; Tasten im Rezept-Editor änderbar
+- README/LIESMICH: Installationsbefehle mit vollem Pfad, Verweis auf das Greenshot-Repository
+
 ## 0.4.1 (Korrekturen aus dem Code-Review)
 - Installer: schließt nur die passende Greenshot-Instanz, zuerst normal; ist ein Editor-Bild offen, wird nachgefragt (`-Force` ohne Frage). Rechte werden vor dem Beenden geprüft, Greenshot wird auch nach einem Fehler wieder gestartet, Pfade exakt (`-LiteralPath`)
 - Speicher: Das Ergebnis wird direkt ins Bild geschrieben und die gesammelten Zeilen werden danach freigegeben (eine Kopie weniger bei langen Aufnahmen)

@@ -30,6 +30,8 @@ Rechtsklick aufs Greenshot-Tray-Symbol:
 
 **Scroll-Capture manuell (HUScroll)** – du scrollst selbst mit dem Mausrad; der Rahmen bleibt stehen (durchklickbar), HUScroll nimmt jede Position auf. Zurückscrollen ist erlaubt, angehängt wird erst wieder unterhalb der tiefsten Stelle. Roter Rahmen = kein Anschluss (zu weit auf einmal gescrollt) → etwas zurückscrollen.
 
+**Tastenkürzel (nur Greenshot 1.4):** HUScroll bringt zwei Rezepte mit – **Strg + Alt + Druck** = automatisch, **Strg + Alt + Shift + Druck** = manuell, Ergebnis im Editor. Tasten ändern oder weitere Schritte anhängen (speichern, Zwischenablage, hochladen …) im Rezept-Editor von Greenshot; der Schritt heißt „Scroll-Capture (HUScroll)“. Greenshot 1.3 kennt keine Rezepte – dort nur über das Tray-Menü.
+
 Auswahl (beide Modi):
 
 - **Klick**: Fenster bzw. Seiteninhalt unter der Maus (bei Browsern wird der Seitenbereich erkannt, wenn er ein eigenes Fenster-Handle hat)

@@ -26,7 +26,10 @@ using System.Windows.Forms;
 using Greenshot.Base.Core;
 using Greenshot.Base.Interfaces;
 using Greenshot.Base.Interfaces.Plugin;
+using Greenshot.Base.Recipes;
+using Greenshot.Base.Recipes.Pipeline;
 using Greenshot.Base.Threading;
+using Greenshot.Plugin.HUScroll.Recipes;
 using HUScroll.Core;
 using HUScroll.Core.UI;
 
@@ -38,7 +41,7 @@ namespace Greenshot.Plugin.HUScroll
     /// HUScroll for Greenshot 1.4: tray menu entry "Scroll-Capture", the result opens in the Greenshot editor.
     /// 1.4 plugins register in ConfigureServices (no I/O) and add their menu entries in StartAsync on the UI thread.
     /// </summary>
-    public sealed class HUScrollPlugin : IGreenshotPlugin
+    public sealed class HUScrollPlugin : IGreenshotPlugin, IRecipeStepProvider
     {
         private const string EditorDesignation = "Editor";
         private static readonly log4net.ILog Log = log4net.LogManager.GetLogger(typeof(HUScrollPlugin));
@@ -51,7 +54,18 @@ namespace Greenshot.Plugin.HUScroll
 
         public void ConfigureServices(IPluginServices services)
         {
-            // Nothing to register yet (no settings, no destinations)
+            // Recipe step "HUScroll" + two built-in recipes with hotkeys (Ctrl+Alt+Print / Ctrl+Alt+Shift+Print),
+            // changeable in the recipe editor
+            services.AddRecipeStepProvider(this);
+            services.AddService<IBuiltInRecipeProvider>(new HUScrollRecipes());
+        }
+
+        /// <summary>
+        /// Registers the recipe step of HUScroll
+        /// </summary>
+        public void RegisterSteps(IStepRegistry registry)
+        {
+            registry?.Register<HUScrollStep>(config => new HUScrollStep(config));
         }
 
         public Task StartAsync(IServiceProvider services, CancellationToken cancellationToken) =>

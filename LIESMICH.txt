@@ -23,6 +23,8 @@ Benutzung:
   - Ziehen: freier Bereich
   - Shift: ganzes Fenster statt Seiteninhalt
   - Esc / "Fertig": Aufnahme beenden, Ergebnis oeffnet sich im Greenshot-Editor
+  Nur Greenshot 1.4: Strg+Alt+Druck = automatisch, Strg+Alt+Shift+Druck = manuell
+  (aenderbar im Rezept-Editor von Greenshot)
 
 Deinstallation:
   powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\Downloads\HUScroll\Install-HUScroll.ps1" -Uninstall
