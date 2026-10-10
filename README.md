@@ -86,5 +86,3 @@ HUScroll ist ein Plugin für Greenshot und nutzt dessen Programmbibliothek `Gree
 - **Programmcode**: GPLv3 – Nutzung, Änderung und Weitergabe nach den Bedingungen der GPLv3
 - **HU-Logo** (`Assets/`): nicht Teil der GPLv3, alle Rechte vorbehalten (GPLv3 §7 e) – Details in [Assets/LICENSE-LOGO.txt](Assets/LICENSE-LOGO.txt). Forks müssen das Logo entfernen oder ersetzen.
 - **Fremdkomponenten**: Greenshot (GPLv3) und log4net (Apache 2.0) werden nur zum Bauen heruntergeladen und sind **nicht** im Repository oder in den Releases enthalten; zur Laufzeit verwendet HUScroll die Dateien der installierten Greenshot-Version.
-
-> Hinweis: keine Rechtsberatung – Einschätzung nach den Lizenztexten und der GPL-FAQ der Free Software Foundation (Plugins, die im selben Prozess laufen und Daten austauschen, gelten als Teil des Programms).
