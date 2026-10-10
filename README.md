@@ -40,11 +40,12 @@ Eine Info-Meldung gibt es nur bei Abbruch oder Problemen.
 
 ## Installation
 
-Release-ZIP entpacken, dann auf dem PC mit Greenshot:
+`HUScroll-<Version>.zip` aus den [Releases](https://github.com/ChiliApple/HUScroll/releases/latest) in den Downloads-Ordner laden, dann in einer normalen PowerShell (Version im Dateinamen anpassen):
 
 ```powershell
 # Zielmaschine: der PC, auf dem Greenshot läuft
-powershell -ExecutionPolicy Bypass -File .\Install-HUScroll.ps1
+Expand-Archive "$env:USERPROFILE\Downloads\HUScroll-0.4.1.zip" -DestinationPath "$env:USERPROFILE\Downloads\HUScroll-0.4.1" -Force
+powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\Downloads\HUScroll-0.4.1\Install-HUScroll.ps1"
 ```
 
 Das Script erkennt die Greenshot-Version und installiert die passende DLL:
@@ -55,7 +56,7 @@ Das Script erkennt die Greenshot-Version und installiert die passende DLL:
 
 Eine bestimmte Greenshot-Installation (z. B. die portable 1.4 zum Testen): `Install-HUScroll.ps1 -GreenshotPath "C:\Pfad\Greenshot.exe"`
 
-Deinstallation: `Install-HUScroll.ps1 -Uninstall`
+Deinstallation: denselben Befehl mit `-Uninstall` am Ende ausführen.
 
 ## So funktioniert's
 

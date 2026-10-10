@@ -3,11 +3,12 @@ HUScroll - Scroll-Capture Plugin fuer Greenshot
 
 Installation (Zielmaschine: der PC, auf dem Greenshot laeuft):
 
-  1. ZIP entpacken
-  2. PowerShell in diesem Ordner oeffnen
+  1. ZIP entpacken (z. B. nach Downloads\HUScroll)
+  2. PowerShell oeffnen
      - normale PowerShell reicht; als Administrator nur, wenn das Plugin in einen
        Ordner unter C:\Program Files muss (Greenshot 1.4 installiert)
-  3. powershell -ExecutionPolicy Bypass -File .\Install-HUScroll.ps1
+  3. powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\Downloads\HUScroll\Install-HUScroll.ps1"
+     (Pfad anpassen, falls woanders entpackt)
 
 Das Script erkennt die Greenshot-Version, kopiert die passende DLL, entfernt die
 Download-Sperre und startet Greenshot neu. Ist im Greenshot-Editor noch ein Bild offen,
@@ -24,7 +25,7 @@ Benutzung:
   - Esc / "Fertig": Aufnahme beenden, Ergebnis oeffnet sich im Greenshot-Editor
 
 Deinstallation:
-  powershell -ExecutionPolicy Bypass -File .\Install-HUScroll.ps1 -Uninstall
+  powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\Downloads\HUScroll\Install-HUScroll.ps1" -Uninstall
 
 Lizenz:
   HUScroll steht unter der GNU General Public License v3 (Datei LICENSE).
