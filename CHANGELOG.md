@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.4.0
+- Neuer Bildvergleich: Raster aus Zellen (32 px × 1 Zeile) statt ganzer Zeilen. Zellen mit bewegtem Inhalt in einem der beiden Bilder werden übersprungen – Video-Hintergründe (z. B. bing.com) und GIFs, die durch jede Zeile laufen, verhindern den Vergleich nicht mehr
+- Rückwärts-Suche (Zurückscrollen) nur noch, wenn Vorwärts nicht passt – halbiert die Rechenzeit
+- Test: Video-Hintergrund mit unterschiedlichen Masken je Bild
+
 ## 0.3.1
 - Seiten voller GIFs (z. B. giphy.com): Scrollen und Animation werden jetzt über senkrechte Streifen unterschieden (vorher: Abbruch nach dem ersten Bild)
 - Kaum noch ruhiger Inhalt zum Vergleichen: Übergang wird aus der Scrollweite geschätzt statt fälschlich „Ende erreicht“

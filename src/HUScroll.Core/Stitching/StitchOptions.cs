@@ -36,7 +36,12 @@ namespace HUScroll.Core.Stitching
         public double RightExcludeFraction { get; set; } = 0.025;
 
         /// <summary>
-        /// A shift with at least this fraction of matching rows is always accepted
+        /// Width of the cells the frames are compared in (a strip of this many pixels, one row high)
+        /// </summary>
+        public int StripWidth { get; set; } = 32;
+
+        /// <summary>
+        /// A shift with at least this fraction of matching cells is always accepted
         /// </summary>
         public double MinMatchScore { get; set; } = 0.92;
 
@@ -78,16 +83,16 @@ namespace HUScroll.Core.Stitching
         public double MinScrollAreaFraction { get; set; } = 0.25;
 
         /// <summary>
-        /// A column which is identical (at the same position) in this fraction of the rows of two frames,
+        /// A strip which is identical (at the same position) in this fraction of the rows of two frames,
         /// and is not a plain color, is a fixed element (e.g. a sidebar) and ignored for matching
         /// </summary>
         public double StaticColumnFraction { get; set; } = 0.98;
 
         /// <summary>
-        /// A row needs at least this many color changes to count as "informative" for the matching
+        /// A cell needs at least this many color changes to count as "informative" for the matching
         /// (plain rows match everywhere and would make the result ambiguous)
         /// </summary>
-        public int InformativeRowMinTransitions { get; set; } = 3;
+        public int InformativeRowMinTransitions { get; set; } = 2;
 
         /// <summary>
         /// Maximum height of the result in pixels

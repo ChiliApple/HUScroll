@@ -464,5 +464,59 @@ namespace HUScroll.Tests
 
             public StitchStatus Add(FrameData frame) => _engine.Add(frame).Status;
         }
+
+        /// <summary>
+        /// Like bing.com: a video background behind everything (fixed on the screen, changes all the time),
+        /// cards with content which scroll over it. Every grab sees another part of the video moving,
+        /// so the animation masks of two frames are never the same.
+        /// </summary>
+        private static FrameData VideoBackground(int[] page, int pageRows, int offset, int viewRows, Random random, double movingFraction)
+        {
+            var frame = new FrameData(Width, viewRows, new int[Width * viewRows]);
+            for (int y = 0; y < viewRows; y++)
+            {
+                int pageY = offset + y;
+                bool cardRow = (pageY / 100) % 2 == 1; // cards every other 100 rows
+                for (int x = 0; x < Width; x++)
+                {
+                    bool card = cardRow && x >= 40 && x < Width - 60;
+                    frame.Pixels[y * Width + x] = card
+                        ? page[pageY * Width + x]
+                        : (random.NextDouble() < movingFraction ? unchecked((int)0xFF000000) | random.Next(0, 0xFFFFFF) : unchecked((int)0xFF203040));
+                }
+            }
+            return frame;
+        }
+
+        [Fact]
+        public void VideoBackground_DifferentMasksPerFrame_StillMatches()
+        {
+            const int pageRows = 2400, viewRows = 600;
+            var page = CreatePage(pageRows, 20);
+            var random = new Random(21);
+            var engine = new StitchEngine();
+
+            FrameData Grab(int offset)
+            {
+                var detector = new AnimationDetector(Width, viewRows);
+                var first = VideoBackground(page, pageRows, offset, viewRows, random, 0.3);
+                var second = VideoBackground(page, pageRows, offset, viewRows, random, 0.3);
+                Assert.True(detector.Observe(first, second));
+                second.Animated = detector.GetUsableMask();
+                return second;
+            }
+
+            engine.Add(Grab(0));
+            int offset = 0;
+            while (offset < 1500)
+            {
+                int next = offset + 280;
+                var result = engine.Add(Grab(next), expectedShift: 280);
+                Assert.Equal(StitchStatus.Appended, result.Status);
+                Assert.False(result.Estimated);
+                Assert.Equal(280, result.Shift);
+                offset = next;
+            }
+        }
     }
 }

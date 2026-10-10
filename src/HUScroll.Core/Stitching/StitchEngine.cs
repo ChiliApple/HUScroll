@@ -20,6 +20,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace HUScroll.Core.Stitching
 {
@@ -68,7 +69,7 @@ namespace HUScroll.Core.Stitching
         public int Shift { get; }
 
         /// <summary>
-        /// Fraction of the compared rows which matched for the chosen shift (0..1)
+        /// Fraction of the compared cells which matched for the chosen shift (0..1)
         /// </summary>
         public double Score { get; }
 
@@ -78,23 +79,24 @@ namespace HUScroll.Core.Stitching
     /// <summary>
     /// Stitches frames of a vertically scrolled area into one tall image.
     ///
-    /// Every new frame is compared with the previous one:
+    /// Every frame is cut into a grid of cells (a strip of <see cref="StitchOptions.StripWidth"/> pixels, one row high),
+    /// each cell gets a hash. A new frame is compared with the previous one:
     ///  1. Rows which are identical at the same position at the top / bottom are a fixed header / footer
     ///     (e.g. a sticky navigation bar or the browser toolbar). They are detected with the first pair and only taken once.
-    ///  2. The right edge (scrollbar) and columns which don't move (fixed sidebars) are ignored for the matching.
-    ///  3. In the scrolling part the shift with the best row match (by row hashes) is searched.
-    ///  4. Only the rows which are new (scrolled in at the bottom) are appended.
+    ///  2. The right edge (scrollbar) and strips which don't move (fixed sidebars) are ignored.
+    ///  3. Cells with animated content (<see cref="FrameData.Animated"/>) are ignored when they are animated in either frame -
+    ///     so a video background or a GIF doesn't spoil the rows it runs through.
+    ///  4. In the scrolling part the shift where most cells match is searched; only the new rows are appended.
     /// Only the previous frame and the appended rows are kept in memory.
     /// </summary>
     public sealed class StitchEngine
     {
         private const ulong FnvOffset = 14695981039346656037UL;
         private const ulong FnvPrime = 1099511628211UL;
-        /// <summary>Animated pixels are compared as this neutral value</summary>
-        private const int AnimatedValue = 0x00777777;
 
         private readonly StitchOptions _options;
         private readonly List<int[]> _blocks = new List<int[]>();
+        private readonly int _quantize;
         private FrameData _previous;
         private bool _layoutKnown;
         private int _header;
@@ -102,8 +104,6 @@ namespace HUScroll.Core.Stitching
         private int _blockRows;
         private int _lastShift;
         private int _consecutiveEstimates;
-
-        private readonly int _quantize;
 
         public StitchEngine(StitchOptions options = null)
         {
@@ -113,29 +113,22 @@ namespace HUScroll.Core.Stitching
             _quantize = (channel << 16) | (channel << 8) | channel;
         }
 
-        /// <summary>
-        /// Number of frames which are part of the result
-        /// </summary>
+        /// <summary>Number of frames which are part of the result</summary>
         public int FrameCount { get; private set; }
 
-        /// <summary>
-        /// Detected fixed header in rows (valid after the first appended frame)
-        /// </summary>
+        /// <summary>Detected fixed header in rows (valid after the first appended frame)</summary>
         public int Header => _header;
 
-        /// <summary>
-        /// Detected fixed footer in rows (valid after the first appended frame)
-        /// </summary>
+        /// <summary>Detected fixed footer in rows (valid after the first appended frame)</summary>
         public int Footer => _footer;
 
-        /// <summary>
-        /// Width of the frames, 0 before the first frame
-        /// </summary>
+        /// <summary>Width of the frames, 0 before the first frame</summary>
         public int Width => _previous?.Width ?? 0;
 
-        /// <summary>
-        /// Height the composed result has right now
-        /// </summary>
+        /// <summary>Number of appended frames whose shift was estimated</summary>
+        public int EstimatedCount { get; private set; }
+
+        /// <summary>Height the composed result has right now</summary>
         public int ResultHeight
         {
             get
@@ -146,9 +139,18 @@ namespace HUScroll.Core.Stitching
         }
 
         /// <summary>
-        /// Number of appended frames whose shift was estimated
+        /// Hashes of the cells of a frame: index row * Strips + strip
         /// </summary>
-        public int EstimatedCount { get; private set; }
+        private sealed class Grid
+        {
+            public int Strips;
+            public int Rows;
+            public ulong[] Hash;
+            /// <summary>The cell has content (not a plain color), plain cells match everywhere and say nothing</summary>
+            public bool[] Informative;
+            /// <summary>At least one pixel of the cell is animated</summary>
+            public bool[] Animated;
+        }
 
         /// <summary>
         /// Add the next frame (same size as the first one)
@@ -183,21 +185,18 @@ namespace HUScroll.Core.Stitching
             // 1. Ignore the right edge (scrollbar thumb moves with every scroll)
             int rightExclude = Math.Max(_options.RightExcludeMinPixels, (int)Math.Round(width * _options.RightExcludeFraction));
             rightExclude = Math.Min(rightExclude, width / 4);
-            var baseMask = new bool[width];
-            for (int x = 0; x < width - rightExclude; x++)
-            {
-                baseMask[x] = true;
-            }
+            int usableWidth = width - rightExclude;
+            int stripWidth = Math.Max(4, _options.StripWidth);
 
-            var previousFull = RowHashes(_previous, baseMask, 0, height, _quantize);
-            var currentFull = RowHashes(frame, baseMask, 0, height, _quantize);
+            var previousGrid = BuildGrid(_previous, usableWidth, stripWidth);
+            var currentGrid = BuildGrid(frame, usableWidth, stripWidth);
+            int strips = previousGrid.Strips;
+            var allStrips = new bool[strips];
+            for (int c = 0; c < strips; c++) allStrips[c] = true;
 
-            // Content at the same position (only something small changed, e.g. an animation): nothing scrolled
-            var informativeFull = InformativeRows(_previous, baseMask, 0, height, _options.InformativeRowMinTransitions, _quantize);
-            Score(previousFull, currentFull, informativeFull, 0, out double unchangedScore, out _);
-            // Almost everything animated (masked): plain rows match everywhere, "unchanged" would be a wrong conclusion
-            bool enoughContent = CountTrue(informativeFull) >= MinInformativeRows(height);
-            if (enoughContent && unchangedScore >= _options.MinMatchScore)
+            // Content at the same position (only something small changed, e.g. an animation that wasn't detected): nothing scrolled
+            CellScore(previousGrid, currentGrid, 0, height, 0, allStrips, out double unchangedScore, out int unchangedConsidered, out _);
+            if (unchangedConsidered >= MinCells(strips, height) && unchangedScore >= _options.MinMatchScore)
             {
                 return new StitchResult(StitchStatus.NoMovement, 0, unchangedScore);
             }
@@ -213,22 +212,14 @@ namespace HUScroll.Core.Stitching
             else
             {
                 header = 0;
-                while (header < height && previousFull[header] == currentFull[header])
-                {
-                    header++;
-                }
-
+                while (header < height && RowUnchanged(previousGrid, currentGrid, header)) header++;
                 if (header == height)
                 {
-                    // Only the ignored columns changed (e.g. a scrollbar which flashed), the content didn't move
                     return new StitchResult(StitchStatus.NoMovement, 0, 1);
                 }
 
                 footer = 0;
-                while (footer < height - header && previousFull[height - 1 - footer] == currentFull[height - 1 - footer])
-                {
-                    footer++;
-                }
+                while (footer < height - header && RowUnchanged(previousGrid, currentGrid, height - 1 - footer)) footer++;
 
                 // Make sure there is enough room to scroll, rows that are equal by coincidence (white margins) are reduced first at the bottom
                 int minScrollArea = Math.Max(_options.MinOverlapRows * 2, (int)(height * _options.MinScrollAreaFraction));
@@ -251,18 +242,13 @@ namespace HUScroll.Core.Stitching
                 return new StitchResult(StitchStatus.NoMatch, 0, 0);
             }
 
-            // 3. Ignore columns which don't move but have content (fixed sidebars, floating buttons)
-            var mask = BuildMovingMask(_previous, frame, baseMask, top, bottom);
+            // 3. Ignore strips which don't move but have content (fixed sidebars, floating buttons)
+            var useStrips = MovingStrips(previousGrid, currentGrid, top, bottom);
 
-            var previousHashes = RowHashes(_previous, mask, top, scrollRows, _quantize);
-            var currentHashes = RowHashes(frame, mask, top, scrollRows, _quantize);
-            var informative = InformativeRows(_previous, mask, top, scrollRows, _options.InformativeRowMinTransitions, _quantize);
-
-            // Not enough still content to compare (e.g. a page full of GIFs): only an estimate from the scroll distance is possible
-            if (CountTrue(informative) < MinInformativeRows(scrollRows))
+            // Not enough still content to compare (e.g. a page full of GIFs, a video): only an estimate from the scroll distance
+            if (CountComparableCells(previousGrid, top, bottom, useStrips) < MinCells(strips, scrollRows))
             {
-                var noScores = new double[maxShift + 1];
-                if (!TryEstimate(noScores, expectedShift, maxShift, out int blindShift, out _))
+                if (!TryEstimate(new double[maxShift + 1], expectedShift, maxShift, out int blindShift, out _))
                 {
                     _consecutiveEstimates = 0;
                     return new StitchResult(StitchStatus.NoMatch, 0, 0);
@@ -271,27 +257,33 @@ namespace HUScroll.Core.Stitching
                 return Commit(frame, header, footer, bottom, blindShift, 0, true);
             }
 
-            // 4. Find the shift with the best match
-            Score(previousHashes, currentHashes, informative, 0, out double zeroScore, out _);
+            // 4. Find the shift with the best match (content moved up)
+            var scores = new double[maxShift + 1];
+            var matchCounts = new int[maxShift + 1];
+            Parallel.For(0, maxShift + 1, shift =>
+            {
+                CellScore(previousGrid, currentGrid, top, bottom, shift, useStrips, out double score, out _, out int matches);
+                scores[shift] = score;
+                matchCounts[shift] = matches;
+            });
+
+            double zeroScore = scores[0];
             int bestShift = 0;
             double bestScore = -1;
             int bestMatches = -1;
-            var scores = new double[maxShift + 1];
-            scores[0] = zeroScore;
             for (int shift = 1; shift <= maxShift; shift++)
             {
-                Score(previousHashes, currentHashes, informative, shift, out double score, out int matches);
-                scores[shift] = score;
+                double score = scores[shift];
                 bool better = score > bestScore + 1e-9;
                 if (!better && Math.Abs(score - bestScore) <= 1e-9)
                 {
-                    better = matches > bestMatches || (matches == bestMatches && IsPreferredShift(shift, bestShift));
+                    better = matchCounts[shift] > bestMatches || (matchCounts[shift] == bestMatches && IsPreferredShift(shift, bestShift));
                 }
 
                 if (!better) continue;
                 bestScore = score;
                 bestShift = shift;
-                bestMatches = matches;
+                bestMatches = matchCounts[shift];
             }
 
             if (zeroScore >= _options.MinMatchScore && zeroScore >= bestScore)
@@ -300,29 +292,18 @@ namespace HUScroll.Core.Stitching
                 return new StitchResult(StitchStatus.NoMovement, 0, zeroScore);
             }
 
-            // Content moved down (scrolled back up, manual mode): not appended, the previous (deepest) frame stays the reference,
-            // scrolling down again continues where the result ends
-            var currentInformative = InformativeRows(frame, mask, top, scrollRows, _options.InformativeRowMinTransitions, _quantize);
-            var backScores = new double[maxShift + 1];
-            backScores[0] = zeroScore;
-            int backShift = 0;
-            double backScore = -1;
-            for (int shift = 1; shift <= maxShift; shift++)
-            {
-                Score(currentHashes, previousHashes, currentInformative, shift, out double score, out _);
-                backScores[shift] = score;
-                if (score <= backScore) continue;
-                backScore = score;
-                backShift = shift;
-            }
+            bool forwardAccepted = IsAccepted(scores, bestShift, bestScore);
 
-            if (backScore > bestScore && IsAccepted(backScores, backShift, backScore))
+            // Content moved down (scrolled back up, manual mode): not appended, the previous (deepest) frame stays the reference.
+            // Only searched when scrolling down doesn't explain the frame (saves half of the work).
+            if (!forwardAccepted || bestScore < _options.MinMatchScore)
             {
-                return new StitchResult(StitchStatus.ScrolledBack, -backShift, backScore);
+                var back = CheckScrolledBack(previousGrid, currentGrid, top, bottom, maxShift, useStrips, zeroScore, bestScore);
+                if (back.HasValue) return back.Value;
             }
 
             bool estimated = false;
-            if (!IsAccepted(scores, bestShift, bestScore))
+            if (!forwardAccepted)
             {
                 if (!TryEstimate(scores, expectedShift, maxShift, out int estimatedShift, out double estimatedScore))
                 {
@@ -338,32 +319,31 @@ namespace HUScroll.Core.Stitching
             return Commit(frame, header, footer, bottom, bestShift, bestScore, estimated);
         }
 
-        private StitchResult Commit(FrameData frame, int header, int footer, int bottom, int bestShift, double bestScore, bool estimated)
+        private StitchResult? CheckScrolledBack(Grid previousGrid, Grid currentGrid, int top, int bottom, int maxShift, bool[] useStrips,
+            double zeroScore, double bestScore)
         {
-            if (!_layoutKnown)
+            var backScores = new double[maxShift + 1];
+            backScores[0] = zeroScore;
+            Parallel.For(1, maxShift + 1, shift =>
             {
-                _header = header;
-                _footer = footer;
-                _layoutKnown = true;
-                AddBlock(_previous.CopyRows(0, bottom));
+                CellScore(currentGrid, previousGrid, top, bottom, shift, useStrips, out double score, out _, out _);
+                backScores[shift] = score;
+            });
+            int backShift = 0;
+            double backScore = -1;
+            for (int shift = 1; shift <= maxShift; shift++)
+            {
+                if (backScores[shift] <= backScore) continue;
+                backScore = backScores[shift];
+                backShift = shift;
             }
 
-            AddBlock(frame.CopyRows(bottom - bestShift, bestShift));
-            _previous = frame;
-            _lastShift = bestShift;
-            FrameCount++;
-            if (estimated)
+            if (backScore > bestScore && IsAccepted(backScores, backShift, backScore))
             {
-                EstimatedCount++;
-                _consecutiveEstimates++;
-            }
-            else
-            {
-                _consecutiveEstimates = 0;
+                return new StitchResult(StitchStatus.ScrolledBack, -backShift, backScore);
             }
 
-            var status = ResultHeight >= _options.MaxOutputHeight ? StitchStatus.LimitReached : StitchStatus.Appended;
-            return new StitchResult(status, bestShift, bestScore, estimated);
+            return null;
         }
 
         /// <summary>
@@ -398,11 +378,207 @@ namespace HUScroll.Core.Stitching
             return new FrameData(width, rows, pixels);
         }
 
+        private StitchResult Commit(FrameData frame, int header, int footer, int bottom, int shift, double score, bool estimated)
+        {
+            if (!_layoutKnown)
+            {
+                _header = header;
+                _footer = footer;
+                _layoutKnown = true;
+                AddBlock(_previous.CopyRows(0, bottom));
+            }
+
+            AddBlock(frame.CopyRows(bottom - shift, shift));
+            _previous = frame;
+            _lastShift = shift;
+            FrameCount++;
+            if (estimated)
+            {
+                EstimatedCount++;
+                _consecutiveEstimates++;
+            }
+            else
+            {
+                _consecutiveEstimates = 0;
+            }
+
+            var status = ResultHeight >= _options.MaxOutputHeight ? StitchStatus.LimitReached : StitchStatus.Appended;
+            return new StitchResult(status, shift, score, estimated);
+        }
+
         private void AddBlock(int[] block)
         {
             _blocks.Add(block);
             _blockRows += block.Length / _previous.Width;
         }
+
+        private Grid BuildGrid(FrameData frame, int usableWidth, int stripWidth)
+        {
+            int strips = Math.Max(1, (usableWidth + stripWidth - 1) / stripWidth);
+            int rows = frame.Height;
+            var grid = new Grid
+            {
+                Strips = strips,
+                Rows = rows,
+                Hash = new ulong[rows * strips],
+                Informative = new bool[rows * strips],
+                Animated = new bool[rows * strips]
+            };
+            var pixels = frame.Pixels;
+            var animated = frame.Animated;
+            int width = frame.Width;
+            int quantize = _quantize;
+            Parallel.For(0, rows, y =>
+            {
+                int rowStart = y * width;
+                for (int c = 0; c < strips; c++)
+                {
+                    int x0 = c * stripWidth;
+                    int x1 = Math.Min(usableWidth, x0 + stripWidth);
+                    ulong hash = FnvOffset;
+                    int first = pixels[rowStart + x0] & quantize;
+                    int transitions = 0;
+                    int last = first;
+                    bool anim = false;
+                    for (int x = x0; x < x1; x++)
+                    {
+                        int index = rowStart + x;
+                        int value = pixels[index] & quantize;
+                        if (value != last) transitions++;
+                        last = value;
+                        if (animated != null && animated[index]) anim = true;
+                        hash ^= (uint)value;
+                        hash *= FnvPrime;
+                    }
+
+                    int cell = y * strips + c;
+                    grid.Hash[cell] = hash;
+                    grid.Informative[cell] = transitions >= _options.InformativeRowMinTransitions;
+                    grid.Animated[cell] = anim;
+                }
+            });
+            return grid;
+        }
+
+        /// <summary>
+        /// Compare row (top + i) of <paramref name="a"/> with row (top + i - shift) of <paramref name="b"/> for all i in [shift, bottom - top).
+        /// Cells animated in either frame are skipped; only informative cells of <paramref name="a"/> count,
+        /// unless there are almost none (then all comparable cells).
+        /// </summary>
+        private static void CellScore(Grid a, Grid b, int top, int bottom, int shift, bool[] useStrips,
+            out double score, out int considered, out int matches)
+        {
+            int strips = a.Strips;
+            int rows = bottom - top;
+            considered = 0;
+            matches = 0;
+            int plainConsidered = 0;
+            int plainMatches = 0;
+            for (int i = shift; i < rows; i++)
+            {
+                int rowA = (top + i) * strips;
+                int rowB = (top + i - shift) * strips;
+                for (int c = 0; c < strips; c++)
+                {
+                    if (!useStrips[c]) continue;
+                    int cellA = rowA + c;
+                    int cellB = rowB + c;
+                    if (a.Animated[cellA] || b.Animated[cellB]) continue;
+                    bool equal = a.Hash[cellA] == b.Hash[cellB];
+                    if (a.Informative[cellA])
+                    {
+                        considered++;
+                        if (equal) matches++;
+                    }
+                    else
+                    {
+                        plainConsidered++;
+                        if (equal) plainMatches++;
+                    }
+                }
+            }
+
+            if (considered < 3)
+            {
+                // A (nearly) plain area: compare all cells
+                considered += plainConsidered;
+                matches += plainMatches;
+            }
+
+            score = considered == 0 ? 0 : (double)matches / considered;
+        }
+
+        /// <summary>
+        /// A row is unchanged when all its comparable cells are equal at the same position (and there is at least one)
+        /// </summary>
+        private static bool RowUnchanged(Grid a, Grid b, int row)
+        {
+            int start = row * a.Strips;
+            int compared = 0;
+            for (int c = 0; c < a.Strips; c++)
+            {
+                int cell = start + c;
+                if (a.Animated[cell] || b.Animated[cell]) continue;
+                if (a.Hash[cell] != b.Hash[cell]) return false;
+                compared++;
+            }
+
+            return compared > 0;
+        }
+
+        /// <summary>
+        /// Strips which are identical at the same position in almost all rows and are not a plain color are fixed elements
+        /// (sidebars, floating buttons) - they are left out of the matching
+        /// </summary>
+        private bool[] MovingStrips(Grid previous, Grid current, int top, int bottom)
+        {
+            int strips = previous.Strips;
+            var use = new bool[strips];
+            int remaining = 0;
+            for (int c = 0; c < strips; c++)
+            {
+                int comparable = 0;
+                int same = 0;
+                bool uniform = true;
+                ulong first = previous.Hash[top * strips + c];
+                for (int y = top; y < bottom; y++)
+                {
+                    int cell = y * strips + c;
+                    if (previous.Hash[cell] != first) uniform = false;
+                    if (previous.Animated[cell] || current.Animated[cell]) continue;
+                    comparable++;
+                    if (previous.Hash[cell] == current.Hash[cell]) same++;
+                }
+
+                bool isStatic = !uniform && comparable > (bottom - top) / 2 && same >= comparable * _options.StaticColumnFraction;
+                use[c] = !isStatic;
+                if (use[c]) remaining++;
+            }
+
+            if (remaining >= Math.Max(2, strips / 10)) return use;
+
+            // When almost everything looks static, don't trust the detection
+            for (int c = 0; c < strips; c++) use[c] = true;
+            return use;
+        }
+
+        private static int CountComparableCells(Grid grid, int top, int bottom, bool[] useStrips)
+        {
+            int count = 0;
+            for (int y = top; y < bottom; y++)
+            {
+                int row = y * grid.Strips;
+                for (int c = 0; c < grid.Strips; c++)
+                {
+                    int cell = row + c;
+                    if (useStrips[c] && grid.Informative[cell] && !grid.Animated[cell]) count++;
+                }
+            }
+
+            return count;
+        }
+
+        private static int MinCells(int strips, int rows) => Math.Max(12, strips * rows / 200);
 
         /// <summary>
         /// A shift is accepted when it matches (almost) perfectly, or when it is a clear peak:
@@ -426,7 +602,7 @@ namespace HUScroll.Core.Stitching
 
         /// <summary>
         /// No clear match: take the best shift up to a bit more than the expected scroll distance, if it matches at least a little,
-        /// otherwise the expected distance itself. Never twice in a row (then something is really wrong).
+        /// otherwise the expected distance itself. Never more often in a row than allowed (then something is really wrong).
         /// </summary>
         private bool TryEstimate(double[] scores, int expectedShift, int maxShift, out int shift, out double score)
         {
@@ -451,135 +627,10 @@ namespace HUScroll.Core.Stitching
             return true;
         }
 
-        private static int CountTrue(bool[] values)
-        {
-            int count = 0;
-            foreach (bool value in values)
-            {
-                if (value) count++;
-            }
-            return count;
-        }
-
-        private static int MinInformativeRows(int rows) => Math.Max(6, rows / 50);
-
         private bool IsPreferredShift(int candidate, int current)
         {
             if (_lastShift <= 0) return candidate < current;
             return Math.Abs(candidate - _lastShift) < Math.Abs(current - _lastShift);
-        }
-
-        private bool[] BuildMovingMask(FrameData previous, FrameData current, bool[] baseMask, int top, int bottom)
-        {
-            int width = previous.Width;
-            int rows = bottom - top;
-            var mask = (bool[])baseMask.Clone();
-            int remaining = 0;
-            for (int x = 0; x < width; x++)
-            {
-                if (!mask[x]) continue;
-                int first = previous[x, top];
-                bool uniform = true;
-                int same = 0;
-                for (int y = top; y < bottom; y++)
-                {
-                    int p = previous[x, y];
-                    if (p != first) uniform = false;
-                    if (p == current[x, y]) same++;
-                }
-
-                if (!uniform && same >= rows * _options.StaticColumnFraction)
-                {
-                    mask[x] = false;
-                }
-                else
-                {
-                    remaining++;
-                }
-            }
-
-            // When almost everything looks static, don't trust the detection
-            return remaining < Math.Max(8, width / 10) ? baseMask : mask;
-        }
-
-        private static void Score(ulong[] previous, ulong[] current, bool[] informative, int shift, out double score, out int matches)
-        {
-            int count = previous.Length;
-            int considered = 0;
-            matches = 0;
-            for (int i = shift; i < count; i++)
-            {
-                if (!informative[i]) continue;
-                considered++;
-                if (previous[i] == current[i - shift]) matches++;
-            }
-
-            if (considered < 3)
-            {
-                // A (nearly) plain area: compare all rows
-                considered = 0;
-                matches = 0;
-                for (int i = shift; i < count; i++)
-                {
-                    considered++;
-                    if (previous[i] == current[i - shift]) matches++;
-                }
-            }
-
-            score = considered == 0 ? 0 : (double)matches / considered;
-        }
-
-        private static ulong[] RowHashes(FrameData frame, bool[] mask, int startRow, int rowCount, int quantize)
-        {
-            var hashes = new ulong[rowCount];
-            var pixels = frame.Pixels;
-            var animated = frame.Animated;
-            int width = frame.Width;
-            for (int r = 0; r < rowCount; r++)
-            {
-                int rowStart = (startRow + r) * width;
-                ulong hash = FnvOffset;
-                for (int x = 0; x < width; x++)
-                {
-                    if (!mask[x]) continue;
-                    int index = rowStart + x;
-                    int value = animated != null && animated[index] ? AnimatedValue : pixels[index];
-                    hash ^= (uint)(value & quantize);
-                    hash *= FnvPrime;
-                }
-
-                hashes[r] = hash;
-            }
-
-            return hashes;
-        }
-
-        private static bool[] InformativeRows(FrameData frame, bool[] mask, int startRow, int rowCount, int minTransitions, int quantize)
-        {
-            var result = new bool[rowCount];
-            var pixels = frame.Pixels;
-            var animated = frame.Animated;
-            int width = frame.Width;
-            for (int r = 0; r < rowCount; r++)
-            {
-                int rowStart = (startRow + r) * width;
-                int transitions = 0;
-                bool hasLast = false;
-                int last = 0;
-                for (int x = 0; x < width && transitions < minTransitions; x++)
-                {
-                    if (!mask[x]) continue;
-                    int index = rowStart + x;
-                    int p = (animated != null && animated[index] ? AnimatedValue : pixels[index]) & quantize;
-                    if (hasLast && p != last) transitions++;
-                    last = p;
-                    hasLast = true;
-                }
-
-                result[r] = transitions >= minTransitions;
-            }
-
-            return result;
         }
     }
 }

@@ -65,7 +65,7 @@ Deinstallation: `Install-HUScroll.ps1 -Uninstall`
 4. **Zusammensetzen** (`StitchEngine`, plattformunabhängig und getestet):
    - Fixe Kopf-/Fußzeilen (Sticky Header, Browser-Leisten) werden erkannt und nur einmal übernommen.
    - Scrollbalken (rechter Rand) und feste Seitenleisten werden beim Vergleich ignoriert.
-   - Die Verschiebung wird über Zeilen-Hashes gesucht, nur neue Zeilen werden angehängt.
+   - Verglichen wird ein Raster aus kleinen Zellen (32 px × 1 Zeile); Zellen mit bewegtem Inhalt in einem der beiden Bilder zählen nicht. Die Verschiebung mit den meisten übereinstimmenden Zellen gewinnt, nur neue Zeilen werden angehängt.
 5. **Übergabe**: Greenshot-Surface mit dem Bild → Ziel `Editor`.
 
 ## Bekannte Grenzen
