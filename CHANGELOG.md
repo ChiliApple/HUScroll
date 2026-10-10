@@ -6,7 +6,7 @@
 
 ## 0.2.1
 - HU-Logo im Tray-Menü, im Auswahl-Overlay, im Statusfenster und als Datei-Symbol der DLL
-- README mit Logo und Badges, CHANGELOG, Entwurf Feature-Request Tastenkürzel
+- README mit Logo und Badges, CHANGELOG
 
 ## 0.2.0
 - Neuer Modus **Scroll-Capture manuell**: Rahmen ziehen, selbst scrollen, HUScroll nimmt laufend auf
