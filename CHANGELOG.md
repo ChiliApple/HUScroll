@@ -1,5 +1,9 @@
 # Änderungen
 
+## 0.5.1
+- Greenshot 1.4: Gehaltenes Tastenkürzel startete das Rezept doppelt (zwei Aufnahmen gleichzeitig, eine davon nur ein stehendes Bild) – jetzt läuft immer nur eine Aufnahme
+- Greenshot 1.4: Der Vollbild-Screenshot, den Greenshot vor jedes Tastenkürzel-Rezept setzt, wird wieder freigegeben
+
 ## 0.5.0
 - Greenshot 1.4: Rezept-Schritt „Scroll-Capture (HUScroll)“ (Parameter Mode = Automatic/Manual) – kombinierbar mit allen anderen Schritten
 - Greenshot 1.4: zwei mitgelieferte Rezepte mit Tastenkürzel – Strg+Alt+Druck (automatisch), Strg+Alt+Shift+Druck (manuell), Ergebnis im Editor; Tasten im Rezept-Editor änderbar
