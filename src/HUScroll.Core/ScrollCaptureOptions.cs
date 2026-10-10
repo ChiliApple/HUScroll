@@ -29,7 +29,7 @@ namespace HUScroll.Core
         public int MaxWheelNotches { get; set; } = 25;
 
         /// <summary>Which part of the scrolling area is scrolled per step (the rest is the overlap used for the matching)</summary>
-        public double TargetScrollFraction { get; set; } = 0.6;
+        public double TargetScrollFraction { get; set; } = 0.5;
 
         /// <summary>Maximum number of frames</summary>
         public int MaxFrames { get; set; } = 120;

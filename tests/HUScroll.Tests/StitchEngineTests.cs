@@ -212,5 +212,38 @@ namespace HUScroll.Tests
                 animated.Pixels[y * Width + x] = unchecked((int)0xFFFF0000);
             Assert.Equal(StitchStatus.NoMovement, engine.Add(animated).Status);
         }
+
+        [Fact]
+        public void ChangedContentAndRenderNoise_StillMatches()
+        {
+            // Real browsers: lazy loaded images change a block of rows between two frames,
+            // and anti-aliasing differs slightly after scrolling (low color bits)
+            const int pageRows = 2400, viewRows = 600, step = 360;
+            var page = CreatePage(pageRows, 8);
+            var random = new Random(9);
+            var engine = new StitchEngine();
+            engine.Add(Viewport(page, pageRows, 0, viewRows, 0, 0, true, 0));
+            int offset = 0;
+            while (offset < pageRows - viewRows)
+            {
+                int next = Math.Min(offset + step, pageRows - viewRows);
+                var frame = Viewport(page, pageRows, next, viewRows, 0, 0, true, 0);
+                // a "loaded image": 1/8 of the rows replaced
+                int imageTop = random.Next(0, viewRows - viewRows / 8);
+                for (int y = imageTop; y < imageTop + viewRows / 8; y++)
+                for (int x = 0; x < Width; x++)
+                    frame.Pixels[y * Width + x] = unchecked((int)0xFF000000) | random.Next(0, 0xFFFFFF);
+                // rendering noise in the lowest bits
+                for (int i = 0; i < frame.Pixels.Length; i += 3)
+                    frame.Pixels[i] ^= 0x00010101 * random.Next(0, 4);
+
+                var result = engine.Add(frame);
+                Assert.Equal(StitchStatus.Appended, result.Status);
+                Assert.Equal(next - offset, result.Shift);
+                offset = next;
+            }
+
+            Assert.Equal(pageRows, engine.Compose().Height);
+        }
     }
 }

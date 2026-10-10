@@ -72,9 +72,14 @@ namespace HUScroll.Core.Stitching
         private int _blockRows;
         private int _lastShift;
 
+        private readonly int _quantize;
+
         public StitchEngine(StitchOptions options = null)
         {
             _options = options ?? new StitchOptions();
+            int ignore = (1 << Math.Max(0, Math.Min(7, _options.IgnoreLowColorBits))) - 1;
+            int channel = 0xFF & ~ignore;
+            _quantize = (channel << 16) | (channel << 8) | channel;
         }
 
         /// <summary>
@@ -145,11 +150,11 @@ namespace HUScroll.Core.Stitching
                 baseMask[x] = true;
             }
 
-            var previousFull = RowHashes(_previous, baseMask, 0, height);
-            var currentFull = RowHashes(frame, baseMask, 0, height);
+            var previousFull = RowHashes(_previous, baseMask, 0, height, _quantize);
+            var currentFull = RowHashes(frame, baseMask, 0, height, _quantize);
 
             // Content at the same position (only something small changed, e.g. an animation): nothing scrolled
-            var informativeFull = InformativeRows(_previous, baseMask, 0, height, _options.InformativeRowMinTransitions);
+            var informativeFull = InformativeRows(_previous, baseMask, 0, height, _options.InformativeRowMinTransitions, _quantize);
             Score(previousFull, currentFull, informativeFull, 0, out double unchangedScore, out _);
             if (unchangedScore >= _options.MinMatchScore)
             {
@@ -208,18 +213,21 @@ namespace HUScroll.Core.Stitching
             // 3. Ignore columns which don't move but have content (fixed sidebars, floating buttons)
             var mask = BuildMovingMask(_previous, frame, baseMask, top, bottom);
 
-            var previousHashes = RowHashes(_previous, mask, top, scrollRows);
-            var currentHashes = RowHashes(frame, mask, top, scrollRows);
-            var informative = InformativeRows(_previous, mask, top, scrollRows, _options.InformativeRowMinTransitions);
+            var previousHashes = RowHashes(_previous, mask, top, scrollRows, _quantize);
+            var currentHashes = RowHashes(frame, mask, top, scrollRows, _quantize);
+            var informative = InformativeRows(_previous, mask, top, scrollRows, _options.InformativeRowMinTransitions, _quantize);
 
             // 4. Find the shift with the best match
             Score(previousHashes, currentHashes, informative, 0, out double zeroScore, out _);
             int bestShift = 0;
             double bestScore = -1;
             int bestMatches = -1;
+            var scores = new double[maxShift + 1];
+            scores[0] = zeroScore;
             for (int shift = 1; shift <= maxShift; shift++)
             {
                 Score(previousHashes, currentHashes, informative, shift, out double score, out int matches);
+                scores[shift] = score;
                 bool better = score > bestScore + 1e-9;
                 if (!better && Math.Abs(score - bestScore) <= 1e-9)
                 {
@@ -238,7 +246,7 @@ namespace HUScroll.Core.Stitching
                 return new StitchResult(StitchStatus.NoMovement, 0, zeroScore);
             }
 
-            if (bestScore < _options.MinMatchScore)
+            if (!IsAccepted(scores, bestShift, bestScore))
             {
                 return new StitchResult(StitchStatus.NoMatch, bestShift, bestScore);
             }
@@ -297,6 +305,26 @@ namespace HUScroll.Core.Stitching
         {
             _blocks.Add(block);
             _blockRows += block.Length / _previous.Width;
+        }
+
+        /// <summary>
+        /// A shift is accepted when it matches (almost) perfectly, or when it is a clear peak:
+        /// content that changed while scrolling (lazy loaded images, re-rendered text) lowers the score of the right shift,
+        /// but every other shift stays far below it.
+        /// </summary>
+        private bool IsAccepted(double[] scores, int bestShift, double bestScore)
+        {
+            if (bestScore >= _options.MinMatchScore) return true;
+            if (bestScore < _options.MinPeakScore) return false;
+
+            double secondBest = 0;
+            for (int shift = 0; shift < scores.Length; shift++)
+            {
+                if (Math.Abs(shift - bestShift) <= 3) continue;
+                if (scores[shift] > secondBest) secondBest = scores[shift];
+            }
+
+            return bestScore - secondBest >= _options.MinPeakMargin;
         }
 
         private bool IsPreferredShift(int candidate, int current)
@@ -365,7 +393,7 @@ namespace HUScroll.Core.Stitching
             score = considered == 0 ? 0 : (double)matches / considered;
         }
 
-        private static ulong[] RowHashes(FrameData frame, bool[] mask, int startRow, int rowCount)
+        private static ulong[] RowHashes(FrameData frame, bool[] mask, int startRow, int rowCount, int quantize)
         {
             var hashes = new ulong[rowCount];
             var pixels = frame.Pixels;
@@ -377,7 +405,7 @@ namespace HUScroll.Core.Stitching
                 for (int x = 0; x < width; x++)
                 {
                     if (!mask[x]) continue;
-                    hash ^= (uint)pixels[rowStart + x];
+                    hash ^= (uint)(pixels[rowStart + x] & quantize);
                     hash *= FnvPrime;
                 }
 
@@ -387,7 +415,7 @@ namespace HUScroll.Core.Stitching
             return hashes;
         }
 
-        private static bool[] InformativeRows(FrameData frame, bool[] mask, int startRow, int rowCount, int minTransitions)
+        private static bool[] InformativeRows(FrameData frame, bool[] mask, int startRow, int rowCount, int minTransitions, int quantize)
         {
             var result = new bool[rowCount];
             var pixels = frame.Pixels;
@@ -401,7 +429,7 @@ namespace HUScroll.Core.Stitching
                 for (int x = 0; x < width && transitions < minTransitions; x++)
                 {
                     if (!mask[x]) continue;
-                    int p = pixels[rowStart + x];
+                    int p = pixels[rowStart + x] & quantize;
                     if (hasLast && p != last) transitions++;
                     last = p;
                     hasLast = true;

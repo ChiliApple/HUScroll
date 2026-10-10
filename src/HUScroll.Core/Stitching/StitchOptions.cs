@@ -16,9 +16,25 @@ namespace HUScroll.Core.Stitching
         public double RightExcludeFraction { get; set; } = 0.025;
 
         /// <summary>
-        /// Minimum fraction of the compared rows which must match for a shift to be accepted
+        /// A shift with at least this fraction of matching rows is always accepted
         /// </summary>
         public double MinMatchScore { get; set; } = 0.92;
+
+        /// <summary>
+        /// Below <see cref="MinMatchScore"/> a shift is still accepted when it is a clear peak:
+        /// at least this score ...
+        /// </summary>
+        public double MinPeakScore { get; set; } = 0.3;
+
+        /// <summary>
+        /// ... and this much better than every other shift (content changed while scrolling, e.g. lazy loaded images)
+        /// </summary>
+        public double MinPeakMargin { get; set; } = 0.2;
+
+        /// <summary>
+        /// Low bits of each color channel which are ignored when comparing (anti-aliasing / rendering noise)
+        /// </summary>
+        public int IgnoreLowColorBits { get; set; } = 3;
 
         /// <summary>
         /// Minimum number of overlapping rows between two frames

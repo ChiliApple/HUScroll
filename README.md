@@ -38,7 +38,7 @@ Deinstallation: `Install-HUScroll.ps1 -Uninstall`
 ## So funktioniert's
 
 1. **Auswahl**: Vollbild-Overlay auf einem eingefrorenen Screenshot, Fenster unter der Maus werden hervorgehoben (`WindowFinder`, `RegionSelectorForm`).
-2. **Scrollen**: Mausrad-Eingaben per `SendInput` in die Mitte des Bereichs, danach wird der Mauszeiger aus dem Bereich geparkt (keine Hover-Effekte). Die Schrittweite passt sich an: ca. 60 % des scrollenden Bereichs pro Schritt, der Rest ist Überlappung.
+2. **Scrollen**: Mausrad-Eingaben per `SendInput` in die Mitte des Bereichs, danach wird der Mauszeiger aus dem Bereich geparkt (keine Hover-Effekte). Die Schrittweite passt sich an: ca. 50 % des scrollenden Bereichs pro Schritt, der Rest ist Überlappung.
 3. **Warten**: nach jedem Schritt wird so lange aufgenommen, bis zwei Aufnahmen identisch sind (Smooth-Scrolling, Lazy Loading).
 4. **Zusammensetzen** (`StitchEngine`, plattformunabhängig und getestet):
    - Fixe Kopf-/Fußzeilen (Sticky Header, Browser-Leisten) werden erkannt und nur einmal übernommen.
