@@ -1,7 +1,7 @@
 # Änderungen
 
 ## 0.5.2
-- Installer: neuer Schalter `-AllUsers` für die Verteilung mit Intune (Win32-App, läuft als SYSTEM): Plugin immer in den Greenshot-Ordner (auch bei 1.3), Kopien in den Benutzerprofilen werden entfernt, keine Rückfragen, Greenshot wird weder beendet noch gestartet. Exit-Codes: 0 = OK, 1618 = Plugin-Datei in Benutzung (Greenshot läuft, Intune versucht es später erneut), 1 = Fehler. Protokoll: `%ProgramData%\HUScroll\Install-HUScroll.log`
+- Installer: neuer Schalter `-AllUsers` für die Verteilung mit Intune (Win32-App, läuft als SYSTEM): Plugin immer in den Greenshot-Ordner (auch bei 1.3), Kopien in den Benutzerprofilen werden entfernt, keine Rückfragen. Läuft Greenshot bei einem angemeldeten Benutzer, wird es in dessen Sitzung normal geschlossen und neu gestartet (nie erzwungen; offener Editor mit ungespeichertem Bild = bleibt offen, Plugin beim nächsten Start; `-NoRestart` = nie). Exit-Codes: 0 = OK, 1618 = Plugin-Datei in Benutzung (Greenshot läuft, Intune versucht es später erneut), 1 = Fehler. Protokoll: `%ProgramData%\HUScroll\Install-HUScroll.log`
 - Installer: startet sich in 64-Bit neu, wenn er in einer 32-Bit-PowerShell läuft (sonst wird Greenshot unter `C:\Program Files` nicht gefunden)
 
 ## 0.5.1

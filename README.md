@@ -75,7 +75,7 @@ Als Win32-App mit dem entpackten ZIP-Ordner als Inhalt:
 | Abhängigkeit | Greenshot (für alle Benutzer installiert) |
 | Rückgabecode | `1618` = Wiederholen (Standard in Intune) |
 
-`-AllUsers` legt das Plugin immer in den Greenshot-Ordner (auch bei 1.3), entfernt Kopien in den Benutzerprofilen, fragt nie nach und beendet oder startet Greenshot nicht – das Plugin ist ab dem nächsten Greenshot-Start da. Läuft Greenshot mit einer älteren HUScroll-Version, ist die Datei gesperrt: Exit-Code 1618, Intune versucht es später erneut. Protokoll: `%ProgramData%\HUScroll\Install-HUScroll.log`.
+`-AllUsers` legt das Plugin immer in den Greenshot-Ordner (auch bei 1.3), entfernt Kopien in den Benutzerprofilen, fragt nie nach und beendet Greenshot nie mit Gewalt. Läuft Greenshot bei einem angemeldeten Benutzer, wird es in dessen Sitzung normal geschlossen und neu gestartet – das Plugin ist sofort da. Ist ein Editor mit ungespeichertem Bild offen, bleibt Greenshot offen und das Plugin kommt beim nächsten Start (`-NoRestart`: nie neu starten). Läuft Greenshot mit einer älteren HUScroll-Version, ist die Datei gesperrt: Exit-Code 1618, Intune versucht es später erneut. Protokoll: `%ProgramData%\HUScroll\Install-HUScroll.log`.
 
 ## So funktioniert's
 
